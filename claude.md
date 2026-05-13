@@ -170,9 +170,9 @@ See [docs/data-sources.md](docs/data-sources.md) for the curated list of dataset
 - [x] Worker deployed and routed at leedsdata.co.uk/api/*
 - [x] First dataset (Council spending, id `2gpp0`) aggregator + frontend page built
 - [x] Pipeline restructured: aggregation moved to GitHub Actions (Worker Free CPU limit was blocking in-Worker refresh)
-- [ ] CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, DATAMILLNORTH_TOKEN added as GitHub repo secrets
-- [ ] First successful Refresh-data workflow run → spending page lights up
+- [x] GitHub secrets added + Refresh-data workflow runs successfully nightly
+- [x] Spending page live at leedsdata.co.uk/pages/spending.html with cleaned-up data (cp1252 decoder, label normalisation, SD→Unit inference recovering ~93% of blank Org Units)
 - [ ] About / methodology page
 - [ ] Second dataset (potholes / planning / recycling?)
 
-Next: Dan adds the three GitHub secrets and fires "Run workflow" on the Refresh data Action — see [docs/deployment.md](docs/deployment.md) §7.
+Next: write an About page explaining methodology + data quality caveats, then pick a second dataset.
