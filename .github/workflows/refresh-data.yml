@@ -6,8 +6,13 @@ on:
   workflow_dispatch:
     inputs:
       months:
-        description: "How many recent months to refresh"
+        description: "How many recent months to consider"
         default: "24"
+        required: false
+      force:
+        description: "Re-aggregate every month, ignoring hash checks"
+        type: boolean
+        default: false
         required: false
 
 concurrency:
@@ -37,4 +42,5 @@ jobs:
           KV_NAMESPACE_ID: "300899a1aa20400e988b897f8d111674"
           DATAMILLNORTH_TOKEN: ${{ secrets.DATAMILLNORTH_TOKEN }}
           MONTHS: ${{ github.event.inputs.months || '24' }}
+          FORCE: ${{ github.event.inputs.force == 'true' && '1' || '0' }}
         run: npm run refresh

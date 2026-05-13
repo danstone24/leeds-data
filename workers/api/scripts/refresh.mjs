@@ -20,6 +20,10 @@
 import { listCsvResources, getDataset, streamCsv } from "../src/datamillnorth.js";
 import { buildMonthlySummary } from "../src/spending.js";
 
+// Bump this when buildMonthlySummary's logic or output shape changes — it
+// invalidates every stored hash so the next run re-aggregates everything.
+const AGGREGATION_VERSION = "v2";
+
 const {
   CLOUDFLARE_API_TOKEN,
   CLOUDFLARE_ACCOUNT_ID,
@@ -27,6 +31,7 @@ const {
   DATAMILLNORTH_TOKEN,
   MONTHS = "24",
   CONCURRENCY = "3",
+  FORCE = "0", // set to "1" to ignore hash matching and reprocess every month
 } = process.env;
 
 if (!CLOUDFLARE_API_TOKEN || !CLOUDFLARE_ACCOUNT_ID || !KV_NAMESPACE_ID) {
@@ -104,16 +109,21 @@ async function main() {
   const months = [...byMonth.keys()].sort().reverse().slice(0, Number(MONTHS));
   console.log(`Considering ${months.length} months: ${months[months.length - 1]} → ${months[0]}`);
 
-  // Decide which months actually need work.
+  // Decide which months actually need work. We compare the stored hash with
+  // a synthetic value that embeds AGGREGATION_VERSION, so any change to the
+  // aggregator forces a clean re-run automatically.
+  const force = FORCE === "1";
   const work = [];
   for (const month of months) {
     const resource = byMonth.get(month);
+    const expected = `${AGGREGATION_VERSION}:${resource.hash || ""}`;
     const lastHash = await kvGet(`spending:hash:${month}`);
-    if (lastHash === resource.hash) {
+    if (!force && lastHash === expected) {
       console.log(`  ✓ ${month}  (unchanged, skipping)`);
     } else {
-      console.log(`  ⟳ ${month}  (${(resource.size / 1024 / 1024).toFixed(1)} MB)`);
-      work.push({ month, resource });
+      const reason = force ? "force" : lastHash ? "logic/data changed" : "new";
+      console.log(`  ⟳ ${month}  (${(resource.size / 1024 / 1024).toFixed(1)} MB, ${reason})`);
+      work.push({ month, resource, expectedHash: expected });
     }
   }
 
@@ -151,8 +161,9 @@ async function main() {
   // Compose the KV writes.
   const writes = [];
   for (const { month, resource, summary } of summaries) {
+    const expected = `${AGGREGATION_VERSION}:${resource.hash || ""}`;
     writes.push({ key: `spending:summary:${month}`, value: JSON.stringify(summary), expiration_ttl: 60 * 60 * 24 * 365 });
-    writes.push({ key: `spending:hash:${month}`, value: resource.hash || "" });
+    writes.push({ key: `spending:hash:${month}`, value: expected });
   }
   writes.push({ key: "spending:trend", value: JSON.stringify({ months: trend, updated: startedAt }) });
   writes.push({ key: "spending:latest", value: months[0] });

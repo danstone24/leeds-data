@@ -15,9 +15,61 @@ const DATASET_ID = "2gpp0";
 const TOP_SUPPLIERS = 20;
 const LARGEST_TXNS = 10;
 
+// Normalise a free-text field. The council's CSVs publish the same logical
+// value under several spellings within the same file (e.g. "Adults & Health"
+// vs "Adults and Health", trailing spaces, trailing '?' on category names),
+// so we have to canonicalise before aggregating or we get fragmented buckets.
+function normaliseField(s) {
+  if (!s) return "";
+  return s
+    .trim()
+    .replace(/\s+/g, " ")          // collapse runs of whitespace
+    .replace(/\s+and\s+/gi, " & ") // "Adults and Health" → "Adults & Health"
+    .replace(/\?+$/, "");          // strip trailing '?' (e.g. "Supplies & Services?")
+}
+
 // Pure aggregation — takes a CSV byte stream, returns a summary object.
 // No KV, no fetch — safe to run anywhere.
 export async function buildMonthlySummary(month, resource, stream) {
+  // Pass 1: stream-decode into memory with normalisation applied. ~27k rows
+  // per month, modest memory footprint. We need two passes because the
+  // Org-Unit→Service-Division mapping is built from the rows where both are
+  // populated, then applied to the rows where Org Unit is missing.
+  const records = [];
+  for await (const row of parseCsvObjects(stream)) {
+    const amount = Number(row["Amount"]);
+    if (!Number.isFinite(amount)) continue;
+    records.push({
+      amount,
+      unit: normaliseField(row["Organisational Unit"]),
+      division: normaliseField(row["Service Division Label"]),
+      supplier: normaliseField(row["Beneficiary Name"]) || "Unknown supplier",
+      purpose: normaliseField(row["Purpose"]),
+      cr: (row["Capital Or Revenue"] || "").trim().toUpperCase(),
+      pcard: (row["Procurement Card"] || "").trim().toLowerCase() === "yes",
+      date: parseUkDate(row["Payment Date"]),
+    });
+  }
+
+  // Build a Service-Division → most-common-Org-Unit lookup from rows where
+  // both are populated. ~80% of Leeds rows omit Org Unit but include Service
+  // Division, so this recovers most of the missing hierarchy.
+  const counts = new Map();
+  for (const r of records) {
+    if (!r.unit || !r.division) continue;
+    const m = counts.get(r.division) || new Map();
+    m.set(r.unit, (m.get(r.unit) || 0) + 1);
+    counts.set(r.division, m);
+  }
+  const sdToUnit = new Map();
+  for (const [div, units] of counts) {
+    let top = null;
+    let topC = 0;
+    for (const [u, c] of units) if (c > topC) { top = u; topC = c; }
+    sdToUnit.set(div, top);
+  }
+
+  // Pass 2: aggregate, resolving missing Org Unit via the lookup.
   const byUnit = new Map();
   const bySupplier = new Map();
   let totalAmount = 0;
@@ -25,41 +77,47 @@ export async function buildMonthlySummary(month, resource, stream) {
   let capital = 0;
   let revenue = 0;
   let procCardAmount = 0;
+  let unitResolvedCount = 0;
+  let unitUnresolvedCount = 0;
   const largest = [];
 
-  for await (const row of parseCsvObjects(stream)) {
-    const amount = Number(row["Amount"]);
-    if (!Number.isFinite(amount)) continue;
-
+  for (const r of records) {
     transactionCount++;
-    totalAmount += amount;
+    totalAmount += r.amount;
 
-    const unit = (row["Organisational Unit"] || "Unknown").trim();
-    const division = (row["Service Division Label"] || "Unknown").trim();
-    const supplier = (row["Beneficiary Name"] || "Unknown").trim();
-    const cr = (row["Capital Or Revenue"] || "").trim().toUpperCase();
-    const pcard = (row["Procurement Card"] || "").trim().toLowerCase() === "yes";
+    let unit = r.unit;
+    if (!unit) {
+      const resolved = r.division ? sdToUnit.get(r.division) : null;
+      if (resolved) {
+        unit = resolved;
+        unitResolvedCount++;
+      } else {
+        unit = "Other / unspecified";
+        unitUnresolvedCount++;
+      }
+    }
+    const division = r.division || "Unspecified";
 
     const u = byUnit.get(unit) || { amount: 0, divisions: new Map() };
-    u.amount += amount;
-    u.divisions.set(division, (u.divisions.get(division) || 0) + amount);
+    u.amount += r.amount;
+    u.divisions.set(division, (u.divisions.get(division) || 0) + r.amount);
     byUnit.set(unit, u);
 
-    const s = bySupplier.get(supplier) || { amount: 0, count: 0 };
-    s.amount += amount;
+    const s = bySupplier.get(r.supplier) || { amount: 0, count: 0 };
+    s.amount += r.amount;
     s.count += 1;
-    bySupplier.set(supplier, s);
+    bySupplier.set(r.supplier, s);
 
-    if (cr === "C") capital += amount;
-    else if (cr === "R") revenue += amount;
-    if (pcard) procCardAmount += amount;
+    if (r.cr === "C") capital += r.amount;
+    else if (r.cr === "R") revenue += r.amount;
+    if (r.pcard) procCardAmount += r.amount;
 
-    if (largest.length < LARGEST_TXNS || amount > largest[largest.length - 1].amount) {
+    if (largest.length < LARGEST_TXNS || r.amount > largest[largest.length - 1].amount) {
       largest.push({
-        date: parseUkDate(row["Payment Date"]),
-        amount,
-        beneficiary: supplier,
-        purpose: (row["Purpose"] || "").trim(),
+        date: r.date,
+        amount: r.amount,
+        beneficiary: r.supplier,
+        purpose: r.purpose,
         unit,
       });
       largest.sort((a, b) => b.amount - a.amount);
@@ -95,6 +153,12 @@ export async function buildMonthlySummary(month, resource, stream) {
     procurementCardAmount: round2(procCardAmount),
     procurementCardShare: totalAmount ? procCardAmount / totalAmount : 0,
     largestTransactions: largest.map((t) => ({ ...t, amount: round2(t.amount) })),
+    dataQuality: {
+      // How many transactions had their Org Unit inferred from Service Division
+      // (because the source data left it blank) vs left as "Other / unspecified".
+      unitResolvedCount,
+      unitUnresolvedCount,
+    },
     source: `https://datamillnorth.org/dataset/council-spending-${DATASET_ID}`,
     updated: new Date().toISOString(),
   };

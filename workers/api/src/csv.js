@@ -2,9 +2,13 @@
 // Handles quoted fields with embedded commas, double-quoted escapes, and \r\n line endings.
 // Designed for Workers — never holds the whole file in memory.
 
+// Datamillnorth's council CSVs are published as Windows-1252 (cp1252), not
+// UTF-8 — they're produced by a legacy finance system and contain things like
+// 0x96 (en-dash) and 0x92 (right single quote). Decoding as UTF-8 would either
+// throw or silently corrupt those bytes. ASCII-only fields are unaffected.
 export async function* parseCsvStream(stream) {
   const reader = stream.getReader();
-  const decoder = new TextDecoder("utf-8");
+  const decoder = new TextDecoder("windows-1252");
   let buffer = "";
 
   while (true) {
