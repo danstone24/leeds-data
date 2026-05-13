@@ -1,30 +1,17 @@
 # Cache policy for Cloudflare Pages.
 # Docs: https://developers.cloudflare.com/pages/configuration/headers/
-#
-# We don't fingerprint filenames (no build step), so anything aggressively
-# cached by browsers won't pick up updates until the cache expires. Short
-# max-age + must-revalidate gets new HTML/JS/CSS in front of users within
-# a minute or two of deploy. Cloudflare's edge cache is unaffected and
-# revalidations are cheap (304 Not Modified, single-digit ms at the edge).
-#
-# Note: Cloudflare Pages' `*` glob doesn't cross `/`, so nested paths need
-# explicit rules. The asset directories below cover everything we have.
+
+# Default — applied to everything (the splat is what does the recursive match).
+/*
+  Cache-Control: public, max-age=60, must-revalidate
 
 # HTML — always check for a new version.
 /
   Cache-Control: public, max-age=0, must-revalidate
-/*.html
+/index.html
   Cache-Control: public, max-age=0, must-revalidate
 /pages/*
   Cache-Control: public, max-age=0, must-revalidate
-
-# CSS and JS — short cache, revalidate after.
-/assets/css/*
-  Cache-Control: public, max-age=60, must-revalidate
-/assets/js/*
-  Cache-Control: public, max-age=60, must-revalidate
-/assets/js/charts/*
-  Cache-Control: public, max-age=60, must-revalidate
 
 # Images change rarely.
 /assets/img/*
