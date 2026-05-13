@@ -1,25 +1,16 @@
 # Cache policy for Cloudflare Pages.
 # Docs: https://developers.cloudflare.com/pages/configuration/headers/
+#
+# NOTE: Cloudflare Pages hardcodes a 4-hour browser cache for /assets/*
+# and IGNORES any _headers rules for those paths. We can override HTML
+# here but not JS/CSS/images. To shorten the asset cache, add a Cache
+# Rule at the zone level (dashboard → leedsdata.co.uk → Rules → Cache
+# Rules), or use query-string cache-busting on the asset references.
 
-# HTML — always check for a new version.
+# HTML — always revalidate so deploys land immediately.
 /
   Cache-Control: public, max-age=0, must-revalidate
 /index.html
   Cache-Control: public, max-age=0, must-revalidate
 /pages/*
   Cache-Control: public, max-age=0, must-revalidate
-
-# Assets — short cache. Using :splat catch-all + explicit fallbacks because
-# Cloudflare's path matching is finicky about nested directories.
-/assets/:path*
-  Cache-Control: public, max-age=60, must-revalidate
-/assets/*
-  Cache-Control: public, max-age=60, must-revalidate
-/assets/css/style.css
-  Cache-Control: public, max-age=60, must-revalidate
-/assets/js/main.js
-  Cache-Control: public, max-age=60, must-revalidate
-/assets/js/api.js
-  Cache-Control: public, max-age=60, must-revalidate
-/assets/js/charts/spending.js
-  Cache-Control: public, max-age=60, must-revalidate
