@@ -1,41 +1,73 @@
 # Leeds Data API Worker
 
-Cloudflare Worker that proxies and caches data from [Datamillnorth.org](https://datamillnorth.org) (CKAN).
+Cloudflare Worker that fetches, aggregates, and caches Leeds City Council data from [Datamillnorth.org](https://datamillnorth.org) (DataPress API).
 
 ## Routes
 
-- `GET /api/health` — returns `{ ok, service, updated }`. `updated` is the last cron refresh.
-- `GET /api/dataset/<name>` — returns `{ data, updated, source }`. `<name>` must be a key in the `DATASETS` registry in [src/index.js](src/index.js).
+| Route | Returns |
+|---|---|
+| `GET /api/health` | Liveness + `updated` (last cron run) + latest spending month |
+| `GET /api/spending/summary` | Latest month summary blob |
+| `GET /api/spending/summary/<yyyy-mm>` | Summary for a specific month |
+| `GET /api/spending/trend` | Rolling 24-month totals |
+| `GET /api/spending/months` | List of months we have summaries for |
 
-## Adding a dataset
+All responses are JSON. Summary shape — see `src/spending.js`.
 
-1. Find the resource on Datamillnorth and grab its `resource_id` (use `package_show?id=<dataset-slug>`).
-2. Add an entry to `DATASETS` in `src/index.js`:
-   ```js
-   "potholes": { resourceId: "abc-123-...", ttlSeconds: 3600 }
-   ```
-3. Document the dataset in [../../docs/data-sources.md](../../docs/data-sources.md).
-4. Push. Workers Builds (or the GitHub Action) redeploys.
+## Code layout
+
+- `src/index.js` — routes + cron entry point
+- `src/datamillnorth.js` — DataPress API client (dataset metadata, CSV stream fetch)
+- `src/csv.js` — streaming CSV parser (no whole-file buffering)
+- `src/spending.js` — council spending aggregator + KV writes
+
+## Adding a new dataset
+
+1. Find the dataset id on Datamillnorth (the short code at the end of the URL).
+2. Add a new `src/<name>.js` modelled on `src/spending.js` — implement a `refresh<Name>(env)` function and route handlers.
+3. Wire routes + cron call in `src/index.js`.
+4. Document it in [../../docs/data-sources.md](../../docs/data-sources.md).
+
+## First-time setup
+
+```sh
+# from this directory (workers/api/)
+
+# 1. Login (one-off)
+npx wrangler login
+
+# 2. Create the KV namespace
+npx wrangler kv:namespace create CACHE
+#  → paste the `id` into wrangler.toml (replace REPLACE_WITH_KV_NAMESPACE_ID)
+
+# 3. Add the Datamillnorth API token as a secret
+npx wrangler secret put DATAMILLNORTH_TOKEN
+#  → paste the token when prompted
+
+# 4. Deploy
+npx wrangler deploy
+
+# 5. (Optional but recommended) prime the cache so the site has data immediately
+#    The nightly cron will do this anyway, but on first deploy you want it now.
+#    In the Cloudflare dashboard: Workers & Pages → leeds-data-api → Triggers →
+#    Cron Triggers → click the schedule row → "Trigger" button.
+```
+
+After deploy, in the Cloudflare dashboard:
+- Map the Worker to `leedsdata.co.uk/api/*` (Workers → leeds-data-api → Settings → Triggers → Routes).
+- Confirm the Cron Trigger is enabled (Workers → leeds-data-api → Settings → Triggers → Cron Triggers).
 
 ## Local dev
 
 ```sh
 npx wrangler dev
-# then GET http://127.0.0.1:8787/api/health
+# GET http://127.0.0.1:8787/api/health
 ```
 
-KV is not bound in `wrangler dev` by default — calls to `env.CACHE` will fall through. That's fine for local testing of the route logic; it just means every request hits Datamillnorth. Use `wrangler dev --remote` to test against real KV.
-
-## First-time setup
-
+To test the scheduled handler locally:
 ```sh
-# 1. Create the KV namespace and paste the id into wrangler.toml
-npx wrangler kv:namespace create CACHE
-
-# 2. Deploy
-npx wrangler deploy
+npx wrangler dev --test-scheduled
+# then hit http://127.0.0.1:8787/__scheduled
 ```
 
-After deploy, in the Cloudflare dashboard:
-- Map the Worker to `leedsdata.co.uk/api/*` (Workers → leeds-data-api → Triggers → Routes).
-- Confirm the Cron Trigger is firing (Workers → leeds-data-api → Triggers → Cron Triggers).
+KV operates against the real namespace by default in `wrangler dev`. If you want a clean local-only cache, add `--persist-to=.wrangler/state` (already gitignored).

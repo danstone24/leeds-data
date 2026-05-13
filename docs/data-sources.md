@@ -1,45 +1,83 @@
 # Data sources
 
-All data on this site comes from **[Datamillnorth.org](https://datamillnorth.org)**, Leeds City Council's open-data portal. It runs **CKAN**, so the API is standard.
+All data on this site comes from **[Datamillnorth.org](https://datamillnorth.org)**, Leeds City Council's open-data portal. It runs **DataPress** (not CKAN — the legacy CKAN endpoints are deprecated).
 
-## The CKAN API
+## The DataPress API
 
-Base URL: `https://datamillnorth.org/api/3/action/`
+Base URL: `https://datamillnorth.org/api/v3/`
 
-The endpoints we actually use:
+Endpoints we use:
 
 | Endpoint | What it does |
 |---|---|
-| `package_search?q=<terms>` | Search datasets by keyword |
-| `package_show?id=<slug>` | Get a dataset's metadata and the list of resources (files/tables) attached to it |
-| `datastore_search?resource_id=<id>&limit=1000` | Get rows from a specific resource — **only works for resources loaded into CKAN's datastore** |
+| `GET /api/v3/datasets/export.json` | List every dataset on the portal |
+| `GET /api/v3/dataset/<id>` | Full metadata + resources keyed by id |
 
-Many resources on Datamillnorth are uploaded as CSVs without being loaded into the datastore. For those, `datastore_search` returns an error. We then either:
-- ask the council to ingest it (sometimes they do), or
-- fetch the CSV directly inside the Worker and parse it server-side.
+URLs on the site look like `https://datamillnorth.org/dataset/<slug>-<id>`. The trailing short code (e.g. `2gpp0` in `council-spending-2gpp0`) IS the API id — strip the slug.
+
+**Resources** within a dataset come back as a dict keyed by numeric id. Each resource has:
+- `title`, `format` (csv, pdf, xlsx, …), `size`, `hash` (md5)
+- `url` — direct download link, CORS-open, supports HTTP Range requests
+- `timeframe: { from, to }` (may be null)
+
+**Auth**: requests carry `Authorization: Bearer ${DATAMILLNORTH_TOKEN}` (Worker secret). Lifts rate limits.
+
+**Docs**: official DataPress API docs at https://datapress.com/docs/api.
 
 ## How to discover a dataset
 
 1. Browse [datamillnorth.org/dataset](https://datamillnorth.org/dataset).
-2. When you find one, note the slug from the URL (e.g. `pothole-defects`).
-3. Hit `https://datamillnorth.org/api/3/action/package_show?id=<slug>` to see the resources. Each resource has an `id` (UUID), `format` (CSV/JSON/etc.), `datastore_active` (true means `datastore_search` works), and a `url`.
-4. Add it to `DATASETS` in the Worker.
+2. Note the URL — the short code at the end is the API id.
+3. Hit `https://datamillnorth.org/api/v3/dataset/<id>` to see the resources.
+4. Add an entry to the Worker (see [../workers/api/README.md](../workers/api/README.md)).
 
 ## Datasets currently wired up
 
-_None yet — this section will grow as we add charts._
+### Council spending
 
-Template for new entries:
+- **Dataset**: [Council spending](https://datamillnorth.org/dataset/council-spending-2gpp0) (id `2gpp0`)
+- **Resources**: 184 monthly CSVs (~6MB each) + matching PDFs. Two CSVs per month — one for >£500 spend and one for purchasing-card spend.
+- **Coverage**: ~2010 onwards. Most recent: previous month, published ~28th of the month after.
+- **Update cadence**: monthly (we cron-refresh nightly to pick up new months on the day they appear).
+- **Why we use it**: this is THE dataset for showing where council money goes. ~14k rows/month, organised by department, supplier, and purpose.
+- **Schema** (CSV columns):
+  - `Organisation Code` (URI, always Leeds — ignore)
+  - `Organisation Label` (always "Leeds City Council" — ignore)
+  - `Effective Date` — month-end date, DD/MM/YYYY
+  - `Organisational Unit` — top-level department (e.g. *Children & Families*)
+  - `Service Division Label` — sub-department (e.g. *Social Care*)
+  - `Category Internal Name` — accounting category (note: trailing `?` on some values, strip it)
+  - `Purpose` — purpose-code label
+  - `Detailed Expenditure Code` — numeric code
+  - `Payment Date` — DD/MM/YYYY
+  - `Transaction Number` — txn id
+  - `Irrecoverable VAT Amount` — £
+  - `Amount` — £ (main number)
+  - `Capital Or Revenue` — `C` or `R`
+  - `Beneficiary Name` — supplier (free text, inconsistent — `LTD` / `Ltd` / `Limited` variants)
+  - `Procurement Card` — `Yes` / `No`
+- **Quirks**:
+  - Some `Category Internal Name` values have a trailing `?` (e.g. `Supplies & Services?`) — strip in the parser.
+  - Beneficiary names are free text and not normalised. Same supplier can appear with multiple spellings. V1 doesn't try to dedupe — just shows raw values. Later we may add a manual alias map.
+  - Two CSV resources per month — historically one was >£500-only and one was full transactions. As of recent months they look duplicate-ish; we use the larger one.
+  - Some months have negative amounts (refunds/corrections) — include them, they're real spend.
+- **Worker routes**:
+  - `GET /api/spending/summary` → latest month
+  - `GET /api/spending/summary/<yyyy-mm>` → historical month
+  - `GET /api/spending/trend` → rolling 24-month totals
+- **Chart**: [pages/spending.html](../pages/spending.html), [assets/js/charts/spending.js](../assets/js/charts/spending.js)
+
+## Template for new entries
 
 ### <topic name>
 
-- **Dataset**: [<slug>](https://datamillnorth.org/dataset/<slug>)
-- **Resource id**: `<uuid>`
+- **Dataset**: [<title>](https://datamillnorth.org/dataset/<slug>-<id>) (id `<id>`)
+- **Resources**: <count + format>
 - **Update cadence**: <e.g. monthly>
 - **Why we use it**: <one sentence>
-- **Quirks**: <e.g. column renamed in 2024, gaps in covid years>
-- **Worker route**: `/api/dataset/<name>`
-- **Chart**: [assets/js/charts/<file>.js](../assets/js/charts/<file>.js)
+- **Quirks**: <gotchas>
+- **Worker routes**: `/api/...`
+- **Chart**: <link>
 
 ## Licence
 

@@ -106,14 +106,18 @@ A public website that visualises open data published by **Leeds City Council** v
 
 ## Data sources
 
-Datamillnorth runs **CKAN**, so it has a standard API. Base: `https://datamillnorth.org/api/3/action/`.
+Datamillnorth runs **DataPress** (not CKAN — the CKAN-compatible facade is deprecated). API base: `https://datamillnorth.org/api/v3/`.
 
 Useful endpoints:
-- `package_search?q=potholes` — find datasets
-- `package_show?id=<dataset-id>` — dataset metadata + resource list
-- `datastore_search?resource_id=<resource-id>&limit=1000` — actual rows (only works for datasets in CKAN's datastore; many are CSV downloads instead)
+- `GET /api/v3/datasets/export.json` — list all datasets
+- `GET /api/v3/dataset/<id>` — full dataset metadata + all resources keyed by id (e.g. `2gpp0` for Council Spending)
+- Resources have a direct `url` field pointing to the CSV/PDF download. CSVs are CORS-open with range request support.
 
-See [docs/data-sources.md](docs/data-sources.md) for the curated list of datasets we use and any quirks (e.g. column rename in 2023, missing months).
+**Auth**: a Datamillnorth API key is stored as the Worker secret `DATAMILLNORTH_TOKEN` and sent on every request to lift rate limits.
+
+Dataset URLs look like `/dataset/<slug>-<id>` — the trailing short code IS the API id.
+
+See [docs/data-sources.md](docs/data-sources.md) for the curated list of datasets we use and any quirks.
 
 ---
 
@@ -147,9 +151,11 @@ See [docs/data-sources.md](docs/data-sources.md) for the curated list of dataset
 
 - [x] Stack chosen, repo scaffolded
 - [x] GitHub repo created at https://github.com/danstone24/leeds-data
-- [ ] Cloudflare Pages connected to repo and live at leedsdata.co.uk
-- [ ] First Worker deployed at /api/health
-- [ ] First dataset wired up end-to-end
+- [x] Cloudflare Pages connected to repo and live at leedsdata.co.uk
+- [x] First dataset (Council spending, id `2gpp0`) wired up frontend → Worker → KV
+- [ ] Worker deployed and routed at leedsdata.co.uk/api/*
+- [ ] First cron-refresh run (or manual prime) so the spending page has data
 - [ ] About / methodology page
+- [ ] Second dataset (potholes / planning / recycling?)
 
-Next: connect the GitHub repo to Cloudflare Pages and get the placeholder site live on the domain.
+Next: deploy the Worker — `cd workers/api && npx wrangler kv:namespace create CACHE` (paste id into wrangler.toml), `npx wrangler secret put DATAMILLNORTH_TOKEN`, `npx wrangler deploy`, then route at `leedsdata.co.uk/api/*` in the dashboard. Trigger the cron once to prime KV.

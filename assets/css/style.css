@@ -299,6 +299,16 @@ ul {
   color: var(--color-warn);
 }
 
+.topic-status.live { color: var(--color-accent); }
+
+.topic-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.topic-link h3 { color: var(--color-text); }
+
 @media (prefers-reduced-motion: reduce) {
   .topic-card { transition: none; }
   .topic-card:hover { transform: none; }
@@ -325,6 +335,199 @@ ul {
     flex-direction: row;
     justify-content: space-between;
   }
+}
+
+/* ----- Topic page hero ----- */
+.topic-hero {
+  padding: var(--space-12) 0 var(--space-8);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.month-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-size: 0.95rem;
+}
+
+.month-picker label {
+  color: var(--color-text-muted);
+}
+
+.month-picker select {
+  font: inherit;
+  color: var(--color-text);
+  background: transparent;
+  border: 0;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+
+/* ----- Stat grid ----- */
+.stat-grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  padding-top: var(--space-8);
+  padding-bottom: var(--space-4);
+}
+
+.stat {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-4) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  box-shadow: var(--shadow-sm);
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.stat-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* ----- Chart sections ----- */
+.chart-section {
+  padding: var(--space-8) var(--space-6);
+  margin-top: var(--space-6);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+
+.chart-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.chart-section h2 {
+  font-size: 1.35rem;
+  margin: 0;
+}
+
+.chart-caption {
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+  margin: var(--space-2) 0 var(--space-6);
+}
+
+.chart-canvas-wrap {
+  position: relative;
+  height: 360px;
+}
+
+.chart-canvas-wrap.chart-tall {
+  height: 520px;
+}
+
+.btn-link {
+  background: transparent;
+  border: 0;
+  color: var(--color-accent);
+  font: inherit;
+  cursor: pointer;
+  padding: var(--space-2) 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.btn-link:hover { color: var(--color-accent-strong); }
+
+/* ----- Capital vs revenue ----- */
+.cap-rev-bar {
+  display: flex;
+  height: 16px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--color-border);
+}
+
+.cap-rev-bar span { display: block; height: 100%; }
+
+.cap-rev-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  margin-top: var(--space-4);
+  font-size: 0.95rem;
+}
+
+.cap-rev-legend strong { font-variant-numeric: tabular-nums; }
+
+.cap-rev-legend .dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: var(--space-2);
+  vertical-align: middle;
+}
+
+.muted { color: var(--color-text-muted); font-weight: 400; }
+
+/* ----- Tables ----- */
+.table-wrap {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.data-table th,
+.data-table td {
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.data-table th {
+  font-weight: 600;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.data-table td.num,
+.data-table th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.data-table tr:last-child td { border-bottom: 0; }
+
+/* ----- Source block ----- */
+.source-block {
+  padding-top: var(--space-8);
+  padding-bottom: var(--space-12);
+  font-size: 0.95rem;
+}
+
+.source-block .muted {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
 }
 
 /* ----- Utilities ----- */
