@@ -1,0 +1,21 @@
+# Cache policy for Cloudflare Pages.
+# Docs: https://developers.cloudflare.com/pages/configuration/headers/
+#
+# We don't fingerprint filenames (no build step), so anything cached aggressively
+# by browsers won't pick up updates until the cache expires. Default to short
+# max-age + must-revalidate so updates land within a minute or two of deploy,
+# while Cloudflare's edge still caches across requests.
+
+# Default for everything: 60s browser cache, with revalidation.
+/*
+  Cache-Control: public, max-age=60, must-revalidate
+
+# HTML pages: always revalidate (deploys publish new HTML often during builds).
+/
+  Cache-Control: public, max-age=0, must-revalidate
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Images change rarely — let the browser hang on to them for a day.
+/assets/img/*
+  Cache-Control: public, max-age=86400
