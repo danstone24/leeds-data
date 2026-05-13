@@ -125,7 +125,7 @@ See [docs/data-sources.md](docs/data-sources.md) for the curated list of dataset
 
 **Frontend (Pages)**: push to `main` → Cloudflare Pages auto-builds and deploys. No build command needed (static site).
 
-**Workers**: push to `main` → the GitHub Action at `.github/workflows/deploy-worker.yml` runs `wrangler deploy`. Triggered by changes under `workers/api/**`. Requires `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repo secrets — see [docs/deployment.md](docs/deployment.md).
+**Workers**: push to `main` → **Workers Builds** (Cloudflare's git-connected build system, same model as Pages) runs `npx wrangler deploy` from `workers/api/`. Configured once in the Cloudflare dashboard against the connected GitHub repo — no workflow file in this repo, nothing to maintain.
 
 **Domain**: `leedsdata.co.uk` points to Cloudflare Pages. DNS managed in Cloudflare.
 

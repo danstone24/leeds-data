@@ -49,35 +49,21 @@ In the Cloudflare dashboard: **Workers & Pages → leeds-data-api → Settings �
 
 (Or uncomment the `routes` block in `wrangler.toml` and redeploy.)
 
-### 6. Auto-deploy the Worker from GitHub
+### 6. Auto-deploy the Worker from GitHub (Workers Builds)
 
-The workflow at [.github/workflows/deploy-worker.yml](../.github/workflows/deploy-worker.yml) runs `wrangler deploy` whenever anything under `workers/api/**` changes on `main`. After this one-time setup you never need wrangler on your laptop again.
+In the Cloudflare dashboard: **Workers & Pages → leeds-data-api → Settings → Builds → Connect**. Pick the `danstone24/leeds-data` repo.
 
-**Create a Cloudflare API token**:
+Build settings:
+- **Branch**: `main`
+- **Root directory**: `workers/api`
+- **Build command**: leave empty
+- **Deploy command**: `npx wrangler deploy` (pre-filled by Cloudflare)
 
-1. Cloudflare dashboard → top-right profile → **My Profile → API Tokens → Create Token**.
-2. Pick the **"Edit Cloudflare Workers"** template (it pre-fills the right permissions).
-3. Under **Account Resources**, narrow it to your account (so the token can't touch other accounts you might be on later).
-4. Create → copy the token (you only see it once).
+After this, every push to `main` triggers a Worker build. Watch progress at **Workers & Pages → leeds-data-api → Deployments**.
 
-**Get your Account ID**:
+**Worker secrets** (`DATAMILLNORTH_TOKEN`, `ADMIN_TOKEN`) are stored on Cloudflare's side and persist across deploys — set them once, forget about them.
 
-Cloudflare dashboard → any Worker → right sidebar → **Account ID** → copy.
-
-**Add both to GitHub repo secrets**:
-
-```sh
-gh secret set CLOUDFLARE_API_TOKEN     # paste token when prompted
-gh secret set CLOUDFLARE_ACCOUNT_ID    # paste account id when prompted
-```
-
-(Or via the web: GitHub repo → Settings → Secrets and variables → Actions → New repository secret.)
-
-**That's it.** Push to `main` → the workflow runs → `wrangler deploy` ships the new code. Watch progress at GitHub repo → Actions tab.
-
-**Worker secrets** (`DATAMILLNORTH_TOKEN`, `ADMIN_TOKEN`) are stored on Cloudflare's side and persist across deploys — you only ever set them once.
-
-**Manual re-run**: GitHub repo → Actions → "Deploy Worker" → "Run workflow" button.
+**Manual re-run**: same Deployments page → click the latest build → **Retry deployment**, or just push an empty commit (`git commit --allow-empty -m "redeploy"`).
 
 ## Day-to-day
 
