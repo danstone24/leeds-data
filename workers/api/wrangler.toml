@@ -14,7 +14,7 @@ compatibility_date = "2026-01-01"
 # then paste the id below.
 [[kv_namespaces]]
 binding = "CACHE"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
+id = "300899a1aa20400e988b897f8d111674"
 
 # Refresh cached datasets daily at 04:00 UTC.
 [triggers]

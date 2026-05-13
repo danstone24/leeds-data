@@ -6,11 +6,12 @@ Cloudflare Worker that fetches, aggregates, and caches Leeds City Council data f
 
 | Route | Returns |
 |---|---|
-| `GET /api/health` | Liveness + `updated` (last cron run) + latest spending month |
-| `GET /api/spending/summary` | Latest month summary blob |
-| `GET /api/spending/summary/<yyyy-mm>` | Summary for a specific month |
-| `GET /api/spending/trend` | Rolling 24-month totals |
-| `GET /api/spending/months` | List of months we have summaries for |
+| `GET  /api/health` | Liveness + `updated` (last cron run) + latest spending month |
+| `GET  /api/spending/summary` | Latest month summary blob |
+| `GET  /api/spending/summary/<yyyy-mm>` | Summary for a specific month |
+| `GET  /api/spending/trend` | Rolling 24-month totals |
+| `GET  /api/spending/months` | List of months we have summaries for |
+| `POST /api/admin/refresh` | Kick off the same job the cron runs. Returns immediately; refresh continues in the background. Requires `Authorization: Bearer ${ADMIN_TOKEN}`. |
 
 All responses are JSON. Summary shape — see `src/spending.js`.
 
@@ -44,13 +45,20 @@ npx wrangler kv:namespace create CACHE
 npx wrangler secret put DATAMILLNORTH_TOKEN
 #  → paste the token when prompted
 
-# 4. Deploy
+# 4. Add an admin token (random string, your choice). Used to manually
+#    trigger refreshes via POST /api/admin/refresh.
+npx wrangler secret put ADMIN_TOKEN
+#  → paste any strong random string (e.g. openssl rand -hex 32)
+
+# 5. Deploy
 npx wrangler deploy
 
-# 5. (Optional but recommended) prime the cache so the site has data immediately
-#    The nightly cron will do this anyway, but on first deploy you want it now.
-#    In the Cloudflare dashboard: Workers & Pages → leeds-data-api → Triggers →
-#    Cron Triggers → click the schedule row → "Trigger" button.
+# 6. Prime the cache on first deploy (cron does this nightly, but you want
+#    data now). Replace <admin-token> with the value you set above.
+curl -X POST -H "Authorization: Bearer <admin-token>" \
+  https://leedsdata.co.uk/api/admin/refresh
+#  → returns immediately; watch progress in the Cloudflare dashboard:
+#    Workers & Pages → leeds-data-api → Logs → Live tail
 ```
 
 After deploy, in the Cloudflare dashboard:

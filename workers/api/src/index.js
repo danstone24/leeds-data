@@ -11,6 +11,9 @@
 //   CACHE — Workers KV namespace for precomputed summaries
 // Secrets:
 //   DATAMILLNORTH_TOKEN — bearer token for the DataPress API
+//   ADMIN_TOKEN        — required to POST /api/admin/refresh (kicks off a
+//                        manual refresh, useful after deploys or while the
+//                        Cloudflare cron-trigger UI is being uncooperative)
 
 import { refreshSpending, handleSummary, handleTrend, handleAvailableMonths } from "./spending.js";
 
@@ -46,13 +49,24 @@ async function handleHealth(env) {
 const MONTH_RE = /^\d{4}-\d{2}$/;
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     if (request.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
 
     const url = new URL(request.url);
     const path = url.pathname.replace(/^\/api/, "").replace(/\/$/, "") || "/";
 
     if (path === "/health") return handleHealth(env);
+
+    if (path === "/admin/refresh" && request.method === "POST") {
+      const auth = request.headers.get("authorization") || "";
+      if (!env.ADMIN_TOKEN || auth !== `Bearer ${env.ADMIN_TOKEN}`) {
+        return json({ error: "Unauthorized" }, { status: 401 });
+      }
+      ctx.waitUntil(
+        refreshSpending(env).catch((err) => console.error("manual refresh failed", err)),
+      );
+      return json({ status: "refresh started — watch the Live tail" });
+    }
 
     if (path === "/spending/summary") {
       const data = await handleSummary(env, null);
@@ -85,5 +99,3 @@ export default {
   },
 };
 
-// Optional: allow `wrangler dev` to trigger a refresh via a hidden POST route.
-// Toggle by setting `ALLOW_MANUAL_REFRESH=1` as a secret/env var during dev.
