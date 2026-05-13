@@ -1,91 +1,34 @@
 // Council spending aggregator.
 //
 // Datamillnorth dataset: council-spending (id 2gpp0). Monthly CSVs of every
-// council transaction. We stream-parse each month, build a compact summary,
-// and stash it in KV. The Worker serves those precomputed blobs to the
-// frontend so we never have to send the raw CSV to the browser.
+// council transaction. The heavy aggregation happens OUTSIDE the Worker —
+// in scripts/refresh.mjs, run by GitHub Actions — because Workers Free
+// caps CPU at 10ms per invocation and parsing a 6MB CSV blows that budget.
 //
-// Schema (see docs/data-sources.md for the long version):
-//   Effective Date, Organisational Unit, Service Division Label,
-//   Category Internal Name, Purpose, Amount, Beneficiary Name,
-//   Capital Or Revenue, Procurement Card, …
+// The Worker just reads precomputed summary blobs from KV via the handlers
+// below. The exported `buildMonthlySummary` function is shared with the
+// refresh script so both sides agree on the schema.
 
-import { getDataset, listCsvResources, streamCsv } from "./datamillnorth.js";
 import { parseCsvObjects } from "./csv.js";
 
 const DATASET_ID = "2gpp0";
 const TOP_SUPPLIERS = 20;
 const LARGEST_TXNS = 10;
 
-// Per month: keep one summary blob in KV at key `spending:summary:<yyyy-mm>`.
-// Rolling trend: `spending:trend` — an array of { month, total, txnCount }.
-// Latest pointer: `spending:latest` — `<yyyy-mm>` of the most recent month available.
-
-export async function refreshSpending(env) {
-  const dataset = await getDataset(env, DATASET_ID);
-  const resources = listCsvResources(dataset);
-
-  // Group by month, prefer the larger of the two CSVs published for each month.
-  const byMonth = new Map();
-  for (const r of resources) {
-    if (!r.timeframeTo) continue;
-    const month = r.timeframeTo.slice(0, 7); // YYYY-MM
-    const existing = byMonth.get(month);
-    if (!existing || r.size > existing.size) byMonth.set(month, r);
-  }
-
-  const months = [...byMonth.keys()].sort().reverse();
-  const trend = [];
-  let latestMonth = null;
-
-  // Process the most recent 24 months. For older months we trust whatever's
-  // already in the trend cache from previous runs (idempotent — full backfill
-  // happens via scripts/backfill.js on first deploy).
-  const target = months.slice(0, 24);
-
-  for (const month of target.reverse()) {
-    const resource = byMonth.get(month);
-    const summaryKey = `spending:summary:${month}`;
-    const hashKey = `spending:hash:${month}`;
-    const lastHash = await env.CACHE.get(hashKey);
-
-    if (lastHash === resource.hash) {
-      // Unchanged — pull the existing trend entry from the stored summary.
-      const cached = await env.CACHE.get(summaryKey, { type: "json" });
-      if (cached) {
-        trend.push({ month, total: cached.totalAmount, txnCount: cached.transactionCount });
-        latestMonth = month;
-        continue;
-      }
-    }
-
-    const summary = await buildMonthlySummary(env, month, resource);
-    await env.CACHE.put(summaryKey, JSON.stringify(summary), { expirationTtl: 60 * 60 * 24 * 90 });
-    await env.CACHE.put(hashKey, resource.hash || "");
-    trend.push({ month, total: summary.totalAmount, txnCount: summary.transactionCount });
-    latestMonth = month;
-  }
-
-  await env.CACHE.put("spending:trend", JSON.stringify({ months: trend, updated: new Date().toISOString() }));
-  if (latestMonth) await env.CACHE.put("spending:latest", latestMonth);
-  await env.CACHE.put("meta:last-refresh", new Date().toISOString());
-}
-
-async function buildMonthlySummary(env, month, resource) {
-  const stream = await streamCsv(env, resource.url);
-
-  const byUnit = new Map();   // unit -> { amount, divisions: Map<name, amount> }
-  const bySupplier = new Map(); // name -> { amount, count }
+// Pure aggregation — takes a CSV byte stream, returns a summary object.
+// No KV, no fetch — safe to run anywhere.
+export async function buildMonthlySummary(month, resource, stream) {
+  const byUnit = new Map();
+  const bySupplier = new Map();
   let totalAmount = 0;
   let transactionCount = 0;
   let capital = 0;
   let revenue = 0;
   let procCardAmount = 0;
-  const largest = []; // top-N min-heap-ish via sorted insertion
+  const largest = [];
 
   for await (const row of parseCsvObjects(stream)) {
-    const amountRaw = row["Amount"];
-    const amount = Number(amountRaw);
+    const amount = Number(row["Amount"]);
     if (!Number.isFinite(amount)) continue;
 
     transactionCount++;
@@ -109,7 +52,6 @@ async function buildMonthlySummary(env, month, resource) {
 
     if (cr === "C") capital += amount;
     else if (cr === "R") revenue += amount;
-
     if (pcard) procCardAmount += amount;
 
     if (largest.length < LARGEST_TXNS || amount > largest[largest.length - 1].amount) {
@@ -125,7 +67,6 @@ async function buildMonthlySummary(env, month, resource) {
     }
   }
 
-  // Flatten unit map for output, sorted by amount desc. Divisions sorted desc inside each unit.
   const byOrganisationalUnit = [...byUnit.entries()]
     .map(([name, { amount, divisions }]) => ({
       name,
@@ -175,7 +116,7 @@ function round2(n) {
   return Math.round(n * 100) / 100;
 }
 
-// Route handlers ------------------------------------------------------------
+// Route handlers (Worker side, KV reads only) -------------------------------
 
 export async function handleSummary(env, month) {
   const target = month || (await env.CACHE.get("spending:latest"));

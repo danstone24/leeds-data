@@ -1,0 +1,12 @@
+{
+  "name": "leeds-data-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Cloudflare Worker that serves Leeds City Council data summaries from Workers KV.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "refresh": "node scripts/refresh.mjs"
+  }
+}

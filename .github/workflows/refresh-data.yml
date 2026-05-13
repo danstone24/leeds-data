@@ -1,0 +1,40 @@
+name: Refresh data
+
+on:
+  schedule:
+    - cron: "0 4 * * *" # daily at 04:00 UTC
+  workflow_dispatch:
+    inputs:
+      months:
+        description: "How many recent months to refresh"
+        default: "24"
+        required: false
+
+concurrency:
+  group: refresh-data
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Refresh spending data
+        working-directory: workers/api
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          KV_NAMESPACE_ID: "300899a1aa20400e988b897f8d111674"
+          DATAMILLNORTH_TOKEN: ${{ secrets.DATAMILLNORTH_TOKEN }}
+          MONTHS: ${{ github.event.inputs.months || '24' }}
+        run: npm run refresh

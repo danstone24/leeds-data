@@ -19,24 +19,32 @@ A public website that visualises open data published by **Leeds City Council** v
 ```
 ┌─────────────────────────────┐         ┌──────────────────────────┐
 │  Browser (visitor)          │         │  Datamillnorth.org       │
-│  loads leedsdata.co.uk      │         │  (CKAN open-data portal) │
+│  loads leedsdata.co.uk      │         │  (DataPress portal)      │
 └────────────┬────────────────┘         └────────────▲─────────────┘
              │                                       │
-             │  HTML/CSS/JS (Cloudflare Pages)       │  cached fetch
-             │                                       │  (daily/hourly cron)
+             │  HTML/CSS/JS                          │  download CSVs
+             │  (Cloudflare Pages)                   │  (daily)
              ▼                                       │
 ┌─────────────────────────────┐         ┌────────────┴─────────────┐
-│  Cloudflare Pages           │ ──API─▶ │  Cloudflare Workers      │
-│  (static site, this repo)   │         │  + Workers KV (cache)    │
+│  Cloudflare Pages           │         │  GitHub Actions          │
+│  (static site, this repo)   │         │  scripts/refresh.mjs     │
+└────────────┬────────────────┘         │  (aggregates monthly     │
+             │                          │   CSVs in Node)          │
+             │  /api/* fetch            └────────────┬─────────────┘
+             ▼                                       │ writes JSON via
+┌─────────────────────────────┐  reads  ┌────────────▼─────────────┐
+│  Cloudflare Worker          │ ──────▶ │  Workers KV (CACHE)      │
+│  (pure KV reader)           │         │  precomputed summaries    │
 └─────────────────────────────┘         └──────────────────────────┘
 ```
 
-- **Frontend**: plain HTML/CSS/JS (no build step, no framework) hosted on **Cloudflare Pages**.
-- **Backend**: **Cloudflare Workers** that fetch + cache Datamillnorth data, exposed at `/api/*` on the same domain.
-- **Cache**: **Workers KV** keyed by dataset, refreshed via **Cron Triggers**.
-- **Hosting**: GitHub repo → auto-deploys to Cloudflare on push to `main`.
+- **Frontend**: plain HTML/CSS/JS hosted on **Cloudflare Pages**.
+- **Worker** (`workers/api/`): KV reader serving `/api/*`. No fetches to Datamillnorth — that would exceed Workers Free's 10ms CPU limit when parsing 6MB CSVs.
+- **Data refresh**: a **GitHub Actions** workflow (`.github/workflows/refresh-data.yml`) runs `scripts/refresh.mjs` nightly. The script downloads any changed CSVs, aggregates them in Node, and writes summary JSON blobs to KV via Cloudflare's REST API.
+- **Cache**: **Workers KV** (`CACHE`) is the single source of truth for served data. Idempotent: skipping unchanged months via hash check.
+- **Hosting**: GitHub repo → auto-deploys to Cloudflare on push to `main`. Pages via Cloudflare's native Pages integration; Worker via Workers Builds.
 
-**Why this stack**: zero-cost on the free tier, global CDN, no servers to manage, and every change is auditable in git. Both Pages and Workers deploy from the same repo.
+**Why this stack**: zero-cost on the free tier, global CDN, no servers to manage, every change auditable in git, and the heavy CSV-parsing work happens on GitHub's 6-hour Actions budget instead of fighting Workers' 10ms-per-invocation CPU cap.
 
 ---
 
@@ -57,16 +65,23 @@ A public website that visualises open data published by **Leeds City Council** v
 │   └── img/
 ├── pages/                ← topic pages (potholes.html, spending.html, …)
 ├── workers/
-│   └── api/              ← one Worker, routes /api/*
+│   └── api/              ← Worker (KV reader) + refresh script
 │       ├── src/
-│       │   └── index.js
+│       │   ├── index.js          ← routes
+│       │   ├── spending.js       ← aggregator + handlers (shared with refresh script)
+│       │   ├── datamillnorth.js  ← DataPress client
+│       │   └── csv.js            ← streaming CSV parser
+│       ├── scripts/
+│       │   └── refresh.mjs       ← Node script, run by GitHub Actions
 │       ├── wrangler.toml
+│       ├── package.json
 │       └── README.md
 ├── docs/
 │   ├── data-sources.md   ← which Datamillnorth datasets we use and why
 │   └── deployment.md     ← step-by-step deploy notes
 └── .github/
-    └── workflows/        ← (optional) CI for Workers if not using Workers Builds
+    └── workflows/
+        └── refresh-data.yml      ← nightly aggregation + KV write
 ```
 
 ---
@@ -152,10 +167,12 @@ See [docs/data-sources.md](docs/data-sources.md) for the curated list of dataset
 - [x] Stack chosen, repo scaffolded
 - [x] GitHub repo created at https://github.com/danstone24/leeds-data
 - [x] Cloudflare Pages connected to repo and live at leedsdata.co.uk
-- [x] First dataset (Council spending, id `2gpp0`) wired up frontend → Worker → KV
-- [ ] Worker deployed and routed at leedsdata.co.uk/api/*
-- [ ] First cron-refresh run (or manual prime) so the spending page has data
+- [x] Worker deployed and routed at leedsdata.co.uk/api/*
+- [x] First dataset (Council spending, id `2gpp0`) aggregator + frontend page built
+- [x] Pipeline restructured: aggregation moved to GitHub Actions (Worker Free CPU limit was blocking in-Worker refresh)
+- [ ] CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID, DATAMILLNORTH_TOKEN added as GitHub repo secrets
+- [ ] First successful Refresh-data workflow run → spending page lights up
 - [ ] About / methodology page
 - [ ] Second dataset (potholes / planning / recycling?)
 
-Next: deploy the Worker — `cd workers/api && npx wrangler kv:namespace create CACHE` (paste id into wrangler.toml), `npx wrangler secret put DATAMILLNORTH_TOKEN`, `npx wrangler deploy`, then route at `leedsdata.co.uk/api/*` in the dashboard. Trigger the cron once to prime KV.
+Next: Dan adds the three GitHub secrets and fires "Run workflow" on the Refresh data Action — see [docs/deployment.md](docs/deployment.md) §7.

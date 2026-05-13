@@ -33,21 +33,18 @@ In the Pages project: **Custom domains → Set up a custom domain → `leedsdata
 
 If the domain isn't on Cloudflare yet, add it as a Cloudflare site first (Cloudflare dashboard → Add a Site → `leedsdata.co.uk`) and update the nameservers at your registrar.
 
-### 4. Deploy the Worker
+### 4. Deploy the Worker (one-off)
 
 ```sh
 cd workers/api
-npx wrangler login                # one-off, opens a browser
-npx wrangler kv:namespace create CACHE
-# paste the printed `id` into wrangler.toml (replacing REPLACE_WITH_KV_NAMESPACE_ID)
+npx wrangler login                       # opens a browser
+npx wrangler kv namespace create CACHE   # paste the id into wrangler.toml
 npx wrangler deploy
 ```
 
 ### 5. Route the Worker at /api/*
 
-In the Cloudflare dashboard: **Workers & Pages → leeds-data-api → Settings → Triggers → Add route**: `leedsdata.co.uk/api/*`.
-
-(Or uncomment the `routes` block in `wrangler.toml` and redeploy.)
+In the Cloudflare dashboard: **Workers & Pages → leeds-data-api → Settings → Domains & Routes → Add → Route**: `leedsdata.co.uk/api/*`.
 
 ### 6. Auto-deploy the Worker from GitHub (Workers Builds)
 
@@ -61,9 +58,50 @@ Build settings:
 
 After this, every push to `main` triggers a Worker build. Watch progress at **Workers & Pages → leeds-data-api → Deployments**.
 
-**Worker secrets** (`DATAMILLNORTH_TOKEN`, `ADMIN_TOKEN`) are stored on Cloudflare's side and persist across deploys — set them once, forget about them.
-
 **Manual re-run**: same Deployments page → click the latest build → **Retry deployment**, or just push an empty commit (`git commit --allow-empty -m "redeploy"`).
+
+### 7. Wire up the data-refresh GitHub Action
+
+The Worker is a KV reader only — heavy aggregation happens in **GitHub Actions** (see `.github/workflows/refresh-data.yml`). Runs daily at 04:00 UTC + on demand from the Actions tab.
+
+Needs three GitHub repo secrets:
+
+**a. Cloudflare API token** — scoped narrowly to KV writes:
+
+1. Cloudflare dashboard → **My Profile → API Tokens → Create Token → Custom token**.
+2. Permissions: **Account → Workers KV Storage → Edit**.
+3. Account Resources: include your account only.
+4. Create, copy the token.
+
+(If you already created an "Edit Cloudflare Workers" token for Workers deploys, it'll work — it's just broader than needed.)
+
+**b. Account ID** — visible in the Cloudflare dashboard sidebar on any Worker page.
+
+**c. Datamillnorth API token** — same value you set on the Worker as `DATAMILLNORTH_TOKEN`.
+
+Add all three to the GitHub repo:
+
+```sh
+gh secret set CLOUDFLARE_API_TOKEN
+gh secret set CLOUDFLARE_ACCOUNT_ID
+gh secret set DATAMILLNORTH_TOKEN
+```
+
+(Or web UI: GitHub repo → Settings → Secrets and variables → Actions.)
+
+**Fire it off**: GitHub repo → **Actions → Refresh data → Run workflow**. First run backfills all 24 months (1-3 mins). Subsequent runs skip months whose source CSV hasn't changed.
+
+### 8. (Optional) Clean up obsolete Worker secrets
+
+Two secrets on the Worker are no longer used now that refresh happens in GitHub Actions:
+
+```sh
+cd workers/api
+npx wrangler secret delete DATAMILLNORTH_TOKEN   # Worker no longer fetches Datamillnorth
+npx wrangler secret delete ADMIN_TOKEN           # /api/admin/refresh route removed
+```
+
+Skipping this step is harmless — unused secrets cost nothing.
 
 ## Day-to-day
 

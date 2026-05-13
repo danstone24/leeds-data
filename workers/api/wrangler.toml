@@ -3,22 +3,17 @@ main = "src/index.js"
 compatibility_date = "2026-01-01"
 
 # Route the Worker at /api/* on the Pages domain.
-# Uncomment once the Pages site is live and the zone is on Cloudflare.
-# routes = [
-#   { pattern = "leedsdata.co.uk/api/*", zone_name = "leedsdata.co.uk" },
-# ]
+# Configured in the Cloudflare dashboard:
+#   Workers & Pages → leeds-data-api → Settings → Domains & Routes
+# (Not declared here because Workers Builds doesn't yet apply route changes
+#  from wrangler.toml; the dashboard is the source of truth for the route.)
 
-# Workers KV namespace for cached dataset responses.
-# Create it once with:
-#   npx wrangler kv:namespace create CACHE
-# then paste the id below.
+# Workers KV namespace for precomputed dataset summaries.
+# Writes happen from the refresh script (.github/workflows/refresh-data.yml),
+# reads happen from this Worker.
 [[kv_namespaces]]
 binding = "CACHE"
 id = "300899a1aa20400e988b897f8d111674"
-
-# Refresh cached datasets daily at 04:00 UTC.
-[triggers]
-crons = ["0 4 * * *"]
 
 [observability]
 enabled = true

@@ -1,21 +1,20 @@
 // Leeds Data API Worker
 //
+// Pure read-only KV reader. All data aggregation happens in
+// scripts/refresh.mjs, run nightly by the GitHub Actions workflow at
+// .github/workflows/refresh-data.yml. The Worker just serves what's in KV.
+//
 // Routes (all under /api/* once mapped to leedsdata.co.uk):
-//   GET /api/health                         → liveness + last-cache-refresh
+//   GET /api/health                         → liveness + last-refresh time
 //   GET /api/spending/summary               → latest month summary
 //   GET /api/spending/summary/<yyyy-mm>     → historical month summary
 //   GET /api/spending/trend                 → rolling 24-month totals
-//   GET /api/spending/months                → list of months we have summaries for
+//   GET /api/spending/months                → list of months with summaries
 //
 // Bindings (wrangler.toml):
-//   CACHE — Workers KV namespace for precomputed summaries
-// Secrets:
-//   DATAMILLNORTH_TOKEN — bearer token for the DataPress API
-//   ADMIN_TOKEN        — required to POST /api/admin/refresh (kicks off a
-//                        manual refresh, useful after deploys or while the
-//                        Cloudflare cron-trigger UI is being uncooperative)
+//   CACHE — Workers KV namespace where the refresh script writes summaries.
 
-import { refreshSpending, handleSummary, handleTrend, handleAvailableMonths } from "./spending.js";
+import { handleSummary, handleTrend, handleAvailableMonths } from "./spending.js";
 
 const CORS_HEADERS = {
   "access-control-allow-origin": "*",
@@ -46,27 +45,14 @@ async function handleHealth(env) {
   });
 }
 
-const MONTH_RE = /^\d{4}-\d{2}$/;
-
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request, env) {
     if (request.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
 
     const url = new URL(request.url);
     const path = url.pathname.replace(/^\/api/, "").replace(/\/$/, "") || "/";
 
     if (path === "/health") return handleHealth(env);
-
-    if (path === "/admin/refresh" && request.method === "POST") {
-      const auth = request.headers.get("authorization") || "";
-      if (!env.ADMIN_TOKEN || auth !== `Bearer ${env.ADMIN_TOKEN}`) {
-        return json({ error: "Unauthorized" }, { status: 401 });
-      }
-      ctx.waitUntil(
-        refreshSpending(env).catch((err) => console.error("manual refresh failed", err)),
-      );
-      return json({ status: "refresh started — watch the Live tail" });
-    }
 
     if (path === "/spending/summary") {
       const data = await handleSummary(env, null);
@@ -91,11 +77,4 @@ export default {
 
     return json({ error: "Not found" }, { status: 404 });
   },
-
-  async scheduled(_event, env, ctx) {
-    ctx.waitUntil(
-      refreshSpending(env).catch((err) => console.error("spending refresh failed", err)),
-    );
-  },
 };
-
