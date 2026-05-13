@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Leeds Data — open data from Leeds City Council, made readable</title>
+    <meta
+      name="description"
+      content="A public dashboard for open data published by Leeds City Council. Potholes, spending, traffic, planning and more — turned into charts anyone can read."
+    />
+    <meta name="theme-color" content="#006a4e" />
+
+    <meta property="og:title" content="Leeds Data" />
+    <meta property="og:description" content="Open data from Leeds City Council, made readable." />
+    <meta property="og:url" content="https://leedsdata.co.uk" />
+    <meta property="og:type" content="website" />
+
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23006a4e'/%3E%3Ctext x='50' y='68' font-family='system-ui,sans-serif' font-weight='700' font-size='60' fill='white' text-anchor='middle'%3EL%3C/text%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="/assets/css/style.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a href="/" class="brand">
+          <span class="brand-mark" aria-hidden="true">L</span>
+          <span class="brand-name">Leeds Data</span>
+        </a>
+        <nav class="site-nav" aria-label="Primary">
+          <a href="/about.html">About</a>
+          <a href="https://datamillnorth.org" rel="noopener">Datamillnorth</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="container">
+          <p class="hero-eyebrow">Open data, made readable</p>
+          <h1 class="hero-title">
+            How is Leeds <span class="hero-accent">actually</span> doing?
+          </h1>
+          <p class="hero-lede">
+            Leeds City Council publishes hundreds of datasets — on potholes,
+            spending, traffic, recycling and more — at
+            <a href="https://datamillnorth.org" rel="noopener">Datamillnorth.org</a>.
+            Most of it is raw CSV. This site turns it into charts you can actually read.
+          </p>
+          <p class="hero-status" id="status">
+            <span class="status-dot"></span>
+            Site under construction. First datasets coming soon.
+          </p>
+        </div>
+      </section>
+
+      <section class="topics">
+        <div class="container">
+          <h2>What you'll be able to explore</h2>
+          <ul class="topic-grid" role="list">
+            <li class="topic-card">
+              <h3>Potholes &amp; road repairs</h3>
+              <p>How many are reported, how long they take to fix, and where the worst hotspots are.</p>
+              <span class="topic-status">Coming soon</span>
+            </li>
+            <li class="topic-card">
+              <h3>Council spending</h3>
+              <p>Where the money goes — broken down by department, supplier and year.</p>
+              <span class="topic-status">Coming soon</span>
+            </li>
+            <li class="topic-card">
+              <h3>Traffic &amp; transport</h3>
+              <p>Counts on the main routes in and out of the city, and how they're trending.</p>
+              <span class="topic-status">Coming soon</span>
+            </li>
+            <li class="topic-card">
+              <h3>Recycling &amp; waste</h3>
+              <p>Recycling rates by ward, fly-tipping reports, and bin collection performance.</p>
+              <span class="topic-status">Coming soon</span>
+            </li>
+            <li class="topic-card">
+              <h3>Planning applications</h3>
+              <p>What's being built, where, and how often applications are approved or refused.</p>
+              <span class="topic-status">Coming soon</span>
+            </li>
+            <li class="topic-card">
+              <h3>Air quality</h3>
+              <p>Pollution monitors across the city and whether the air you breathe is getting cleaner.</p>
+              <span class="topic-status">Coming soon</span>
+            </li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <p>
+          Data from
+          <a href="https://datamillnorth.org" rel="noopener">Datamillnorth.org</a>,
+          licensed under the
+          <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/" rel="noopener">Open Government Licence</a>.
+        </p>
+        <p>
+          Built by Dan Stone. Source on
+          <a href="#" id="repo-link" rel="noopener">GitHub</a>.
+        </p>
+      </div>
+    </footer>
+
+    <script type="module" src="/assets/js/main.js" defer></script>
+  </body>
+</html>

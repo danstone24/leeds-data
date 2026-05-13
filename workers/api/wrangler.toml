@@ -1,0 +1,24 @@
+name = "leeds-data-api"
+main = "src/index.js"
+compatibility_date = "2026-01-01"
+
+# Route the Worker at /api/* on the Pages domain.
+# Uncomment once the Pages site is live and the zone is on Cloudflare.
+# routes = [
+#   { pattern = "leedsdata.co.uk/api/*", zone_name = "leedsdata.co.uk" },
+# ]
+
+# Workers KV namespace for cached dataset responses.
+# Create it once with:
+#   npx wrangler kv:namespace create CACHE
+# then paste the id below.
+[[kv_namespaces]]
+binding = "CACHE"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+# Refresh cached datasets daily at 04:00 UTC.
+[triggers]
+crons = ["0 4 * * *"]
+
+[observability]
+enabled = true
