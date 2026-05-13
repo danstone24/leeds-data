@@ -172,6 +172,8 @@ See [docs/data-sources.md](docs/data-sources.md) for the curated list of dataset
 - [x] Pipeline restructured: aggregation moved to GitHub Actions (Worker Free CPU limit was blocking in-Worker refresh)
 - [x] GitHub secrets added + Refresh-data workflow runs successfully nightly
 - [x] Spending page live at leedsdata.co.uk/pages/spending.html with cleaned-up data (cp1252 decoder, label normalisation, SD→Unit inference recovering ~93% of blank Org Units)
+- [x] Time-range filters (YTD, tax years, calendar years, months) via grouped period picker; aggregator combines monthly summaries server-side
+- [x] L4 drill: clicking a Purpose opens a transactions table for monthly views (top 100 per leaf, capped)
 - [ ] About / methodology page
 - [ ] Second dataset (potholes / planning / recycling?)
 

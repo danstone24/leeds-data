@@ -1,20 +1,25 @@
 // Leeds Data API Worker
 //
-// Pure read-only KV reader. All data aggregation happens in
-// scripts/refresh.mjs, run nightly by the GitHub Actions workflow at
-// .github/workflows/refresh-data.yml. The Worker just serves what's in KV.
+// Read-only KV server. Aggregation runs in GitHub Actions (see
+// .github/workflows/refresh-data.yml). The Worker exposes /api/* under
+// leedsdata.co.uk.
 //
-// Routes (all under /api/* once mapped to leedsdata.co.uk):
-//   GET /api/health                         → liveness + last-refresh time
-//   GET /api/spending/summary               → latest month summary
-//   GET /api/spending/summary/<yyyy-mm>     → historical month summary
-//   GET /api/spending/trend                 → rolling 24-month totals
-//   GET /api/spending/months                → list of months with summaries
-//
-// Bindings (wrangler.toml):
-//   CACHE — Workers KV namespace where the refresh script writes summaries.
+// Routes:
+//   GET /api/health
+//   GET /api/spending/periods
+//   GET /api/spending/summary
+//   GET /api/spending/summary/<period-id>
+//        period-id = yyyy-mm | fy:YYYY | cy:YYYY | ytd:YYYY
+//   GET /api/spending/trend
+//   GET /api/spending/months
+//   GET /api/spending/transactions/<yyyy-mm>?unit=…&division=…&purpose=…
 
-import { handleSummary, handleTrend, handleAvailableMonths } from "./spending.js";
+import {
+  handleSummary,
+  handleTrend,
+  handlePeriods,
+  handleTransactions,
+} from "./spending.js";
 
 const CORS_HEADERS = {
   "access-control-allow-origin": "*",
@@ -45,6 +50,9 @@ async function handleHealth(env) {
   });
 }
 
+const PERIOD_ID_RE = /^(\d{4}-\d{2}|fy:\d{4}|cy:\d{4}|ytd:\d{4})$/;
+const MONTH_RE = /^\d{4}-\d{2}$/;
+
 export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") return new Response(null, { headers: CORS_HEADERS });
@@ -54,25 +62,49 @@ export default {
 
     if (path === "/health") return handleHealth(env);
 
+    if (path === "/spending/periods") {
+      const data = await handlePeriods(env);
+      return data ? json(data) : json({ error: "No period data yet" }, { status: 503 });
+    }
+
     if (path === "/spending/summary") {
       const data = await handleSummary(env, null);
       return data ? json(data) : json({ error: "No spending data yet" }, { status: 503 });
     }
 
-    const summaryMatch = path.match(/^\/spending\/summary\/([0-9]{4}-[0-9]{2})$/);
+    const summaryMatch = path.match(/^\/spending\/summary\/(.+)$/);
     if (summaryMatch) {
-      const data = await handleSummary(env, summaryMatch[1]);
-      return data ? json(data) : json({ error: "Month not available" }, { status: 404 });
+      const periodId = decodeURIComponent(summaryMatch[1]);
+      if (!PERIOD_ID_RE.test(periodId)) {
+        return json({ error: "Invalid period id" }, { status: 400 });
+      }
+      const data = await handleSummary(env, periodId);
+      return data ? json(data) : json({ error: "Period not available" }, { status: 404 });
     }
 
     if (path === "/spending/trend") {
-      const data = await handleTrend(env);
+      const data = await env.CACHE.get("spending:trend", { type: "json" });
       return data ? json(data) : json({ error: "No trend data yet" }, { status: 503 });
     }
 
+    // Legacy endpoint — list of months, kept so older frontend builds still work.
     if (path === "/spending/months") {
-      const data = await handleAvailableMonths(env);
-      return data ? json(data) : json({ error: "No data yet" }, { status: 503 });
+      const cat = await handlePeriods(env);
+      if (!cat) return json({ error: "No data yet" }, { status: 503 });
+      return json({ months: cat.months.map((m) => m.id) });
+    }
+
+    const txnMatch = path.match(/^\/spending\/transactions\/(\d{4}-\d{2})$/);
+    if (txnMatch) {
+      const month = txnMatch[1];
+      const unit = url.searchParams.get("unit");
+      const division = url.searchParams.get("division");
+      const purpose = url.searchParams.get("purpose");
+      if (!unit || !division || !purpose) {
+        return json({ error: "Required query params: unit, division, purpose" }, { status: 400 });
+      }
+      const data = await handleTransactions(env, month, unit, division, purpose);
+      return data ? json(data) : json({ error: "Transactions not available for this month" }, { status: 404 });
     }
 
     return json({ error: "Not found" }, { status: 404 });

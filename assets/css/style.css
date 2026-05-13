@@ -484,6 +484,48 @@ ul {
 
 .muted { color: var(--color-text-muted); font-weight: 400; }
 
+/* ----- Transactions panel (L4) ----- */
+.txn-panel {
+  margin-top: var(--space-8);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--color-border);
+  animation: txn-fade-in 0.2s ease;
+}
+
+@keyframes txn-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .txn-panel { animation: none; }
+}
+
+.txn-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-2);
+}
+
+.txn-header h3 {
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+#period-select optgroup {
+  font-style: normal;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+#period-select option {
+  font-weight: 400;
+  color: var(--color-text);
+}
+
 /* ----- Tables ----- */
 .table-wrap {
   overflow-x: auto;

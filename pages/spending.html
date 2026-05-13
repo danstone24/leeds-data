@@ -35,8 +35,8 @@
             Loading the latest figures from Leeds City Council&hellip;
           </p>
           <div class="month-picker">
-            <label for="month-select">Showing data for</label>
-            <select id="month-select" aria-label="Month">
+            <label for="period-select">Showing data for</label>
+            <select id="period-select" aria-label="Time period">
               <option>Loading&hellip;</option>
             </select>
           </div>
@@ -72,6 +72,26 @@
         </p>
         <div class="chart-canvas-wrap">
           <canvas id="dept-chart" aria-label="Spending by department"></canvas>
+        </div>
+
+        <div class="txn-panel" id="txn-panel" hidden>
+          <div class="txn-header">
+            <h3 id="txn-title">Transactions</h3>
+            <button class="btn-link" id="txn-close">Close ×</button>
+          </div>
+          <p class="chart-caption" id="txn-caption"></p>
+          <div class="table-wrap">
+            <table class="data-table" id="txn-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Supplier</th>
+                  <th class="num">Amount</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
         </div>
       </section>
 
