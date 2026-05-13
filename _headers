@@ -1,10 +1,6 @@
 # Cache policy for Cloudflare Pages.
 # Docs: https://developers.cloudflare.com/pages/configuration/headers/
 
-# Default — applied to everything (the splat is what does the recursive match).
-/*
-  Cache-Control: public, max-age=60, must-revalidate
-
 # HTML — always check for a new version.
 /
   Cache-Control: public, max-age=0, must-revalidate
@@ -13,6 +9,17 @@
 /pages/*
   Cache-Control: public, max-age=0, must-revalidate
 
-# Images change rarely.
-/assets/img/*
-  Cache-Control: public, max-age=86400
+# Assets — short cache. Using :splat catch-all + explicit fallbacks because
+# Cloudflare's path matching is finicky about nested directories.
+/assets/:path*
+  Cache-Control: public, max-age=60, must-revalidate
+/assets/*
+  Cache-Control: public, max-age=60, must-revalidate
+/assets/css/style.css
+  Cache-Control: public, max-age=60, must-revalidate
+/assets/js/main.js
+  Cache-Control: public, max-age=60, must-revalidate
+/assets/js/api.js
+  Cache-Control: public, max-age=60, must-revalidate
+/assets/js/charts/spending.js
+  Cache-Control: public, max-age=60, must-revalidate
