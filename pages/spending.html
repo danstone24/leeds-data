@@ -34,11 +34,10 @@
           <p class="hero-lede" id="summary-line">
             Loading the latest figures from Leeds City Council&hellip;
           </p>
-          <div class="month-picker">
-            <label for="period-select">Showing data for</label>
-            <select id="period-select" aria-label="Time period">
-              <option>Loading&hellip;</option>
-            </select>
+          <div class="period-picker" aria-label="Time period">
+            <div class="period-picker-label">Showing data for</div>
+            <div class="period-tabs" id="period-tabs" role="tablist"></div>
+            <div class="period-chips" id="period-chips" role="tabpanel"></div>
           </div>
         </div>
       </section>

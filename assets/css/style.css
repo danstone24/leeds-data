@@ -343,29 +343,114 @@ ul {
   border-bottom: 1px solid var(--color-border);
 }
 
-.month-picker {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-3);
+/* ----- Period picker (custom two-row pill control) ----- */
+.period-picker {
   margin-top: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.period-picker-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.period-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.period-tab {
+  font: inherit;
+  font-weight: 500;
+  font-size: 0.92rem;
   padding: var(--space-2) var(--space-4);
-  background: var(--color-bg-elevated);
   border: 1px solid var(--color-border);
   border-radius: 999px;
-  font-size: 0.95rem;
-}
-
-.month-picker label {
+  background: var(--color-bg-elevated);
   color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
-.month-picker select {
-  font: inherit;
+.period-tab:hover {
   color: var(--color-text);
+  border-color: var(--color-text-muted);
+}
+
+.period-tab[aria-selected="true"] {
+  background: var(--color-text);
+  color: var(--color-bg-elevated);
+  border-color: var(--color-text);
+}
+
+@media (prefers-color-scheme: dark) {
+  .period-tab[aria-selected="true"] {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: #ffffff;
+  }
+}
+
+.period-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-height: 36px; /* prevent layout shift while populating */
+}
+
+.period-chips.scrollable {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  margin: 0 calc(-1 * var(--space-2));
+  padding: var(--space-1) var(--space-2);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.period-chip {
+  font: inherit;
+  font-size: 0.88rem;
+  padding: 6px var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
   background: transparent;
-  border: 0;
-  padding: 2px 4px;
+  color: var(--color-text-muted);
   cursor: pointer;
+  white-space: nowrap;
+  scroll-snap-align: start;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.period-chip:hover {
+  color: var(--color-text);
+  border-color: var(--color-text-muted);
+}
+
+.period-chip[aria-pressed="true"] {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+  color: var(--color-accent-strong);
+  font-weight: 600;
+}
+
+@media (prefers-color-scheme: dark) {
+  .period-chip[aria-pressed="true"] {
+    background: var(--color-accent-soft);
+    color: var(--color-accent-strong);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .period-tab,
+  .period-chip { transition: none; }
 }
 
 /* ----- Stat grid ----- */

@@ -58,42 +58,103 @@ async function bootstrap() {
   }
 }
 
+// Custom period picker — category tabs + chips for the items in the selected category.
+
+const TAB_DEFS = [
+  { kind: "ytd",   label: "Year to date" },
+  { kind: "fy",    label: "Tax year" },
+  { kind: "cy",    label: "Calendar year" },
+  { kind: "month", label: "Month" },
+];
+
 function populatePeriodPicker(cat) {
-  const select = document.getElementById("period-select");
-  select.innerHTML = "";
+  const tabsEl = document.getElementById("period-tabs");
+  const chipsEl = document.getElementById("period-chips");
+  tabsEl.innerHTML = "";
+  chipsEl.innerHTML = "";
 
-  const groups = new Map();
-  for (const p of cat.periods) {
-    const groupLabel = { ytd: "Year to date", fy: "Tax years", cy: "Calendar years" }[p.kind] || "Other";
-    if (!groups.has(groupLabel)) groups.set(groupLabel, []);
-    groups.get(groupLabel).push(p);
+  const itemsByKind = {
+    ytd: cat.periods.filter((p) => p.kind === "ytd").map((p) => ({ id: p.id, label: stripTaxYearMonths(p.label) })),
+    fy:  cat.periods.filter((p) => p.kind === "fy").map((p) => ({ id: p.id, label: shortTaxYearLabel(p) })),
+    cy:  cat.periods.filter((p) => p.kind === "cy").map((p) => ({ id: p.id, label: p.label.replace(/^Calendar year /, "") })),
+    month: cat.months.map((m) => ({ id: m.id, label: m.label })),
+  };
+
+  // Tabs (only show non-empty kinds)
+  const visibleKinds = TAB_DEFS.filter((d) => itemsByKind[d.kind].length);
+  for (const def of visibleKinds) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "period-tab";
+    btn.textContent = def.label;
+    btn.dataset.kind = def.kind;
+    btn.setAttribute("role", "tab");
+    btn.setAttribute("aria-selected", "false");
+    btn.addEventListener("click", () => selectKind(def.kind, /* loadFirst */ true));
+    tabsEl.appendChild(btn);
   }
 
-  for (const [label, items] of groups) {
-    const og = document.createElement("optgroup");
-    og.label = label;
-    for (const p of items) {
-      const opt = document.createElement("option");
-      opt.value = p.id;
-      opt.textContent = p.label;
-      og.appendChild(opt);
+  // Initial state: pick whichever kind contains the first available period.
+  const initialKind = visibleKinds[0]?.kind || "month";
+  selectKind(initialKind, /* loadFirst */ false);
+  const initialId = itemsByKind[initialKind][0]?.id;
+  if (initialId) {
+    markSelectedChip(initialId);
+  }
+
+  function selectKind(kind, loadFirst) {
+    for (const t of tabsEl.querySelectorAll(".period-tab")) {
+      t.setAttribute("aria-selected", t.dataset.kind === kind ? "true" : "false");
     }
-    select.appendChild(og);
-  }
-
-  if (cat.months.length) {
-    const og = document.createElement("optgroup");
-    og.label = "Months";
-    for (const m of cat.months) {
-      const opt = document.createElement("option");
-      opt.value = m.id;
-      opt.textContent = m.label;
-      og.appendChild(opt);
+    renderChips(kind);
+    if (loadFirst) {
+      const first = itemsByKind[kind][0];
+      if (first) {
+        markSelectedChip(first.id);
+        loadPeriod(first.id);
+      }
     }
-    select.appendChild(og);
   }
 
-  select.addEventListener("change", () => loadPeriod(select.value));
+  function renderChips(kind) {
+    chipsEl.innerHTML = "";
+    chipsEl.classList.toggle("scrollable", kind === "month");
+    for (const item of itemsByKind[kind]) {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "period-chip";
+      chip.textContent = item.label;
+      chip.dataset.periodId = item.id;
+      chip.setAttribute("aria-pressed", "false");
+      chip.addEventListener("click", () => {
+        markSelectedChip(item.id);
+        loadPeriod(item.id);
+      });
+      chipsEl.appendChild(chip);
+    }
+  }
+
+  function markSelectedChip(periodId) {
+    for (const c of chipsEl.querySelectorAll(".period-chip")) {
+      c.setAttribute("aria-pressed", c.dataset.periodId === periodId ? "true" : "false");
+    }
+    const sel = chipsEl.querySelector('.period-chip[aria-pressed="true"]');
+    sel?.scrollIntoView({ inline: "nearest", block: "nearest", behavior: "instant" });
+  }
+}
+
+// "Year to date — 2026" → "2026"
+function stripTaxYearMonths(label) {
+  return label.replace(/^Year to date — /, "");
+}
+// Period entry from /api/spending/periods → short chip label, e.g. "2025–26"
+function shortTaxYearLabel(p) {
+  // p.id is like "fy:2025"; we want "2025–26"
+  const m = p.id.match(/^fy:(\d{4})$/);
+  if (!m) return p.label;
+  const start = m[1];
+  const end = String(Number(start) + 1).slice(2);
+  return `${start}–${end}`;
 }
 
 async function loadPeriod(periodId) {
