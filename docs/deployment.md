@@ -49,34 +49,35 @@ In the Cloudflare dashboard: **Workers & Pages → leeds-data-api → Settings �
 
 (Or uncomment the `routes` block in `wrangler.toml` and redeploy.)
 
-### 6. (Optional) Set up auto-deploy for the Worker
+### 6. Auto-deploy the Worker from GitHub
 
-Two options:
+The workflow at [.github/workflows/deploy-worker.yml](../.github/workflows/deploy-worker.yml) runs `wrangler deploy` whenever anything under `workers/api/**` changes on `main`. After this one-time setup you never need wrangler on your laptop again.
 
-**A. Workers Builds** (Cloudflare-native, like Pages):
-- Workers & Pages → leeds-data-api → Settings → Builds → Connect to Git → choose the repo, root dir `workers/api`.
+**Create a Cloudflare API token**:
 
-**B. GitHub Action** (more control):
-- Create `.github/workflows/deploy-worker.yml` (see below).
-- Add a `CLOUDFLARE_API_TOKEN` secret in GitHub repo settings, scoped to "Edit Workers" on your account.
+1. Cloudflare dashboard → top-right profile → **My Profile → API Tokens → Create Token**.
+2. Pick the **"Edit Cloudflare Workers"** template (it pre-fills the right permissions).
+3. Under **Account Resources**, narrow it to your account (so the token can't touch other accounts you might be on later).
+4. Create → copy the token (you only see it once).
 
-```yaml
-# .github/workflows/deploy-worker.yml
-name: Deploy Worker
-on:
-  push:
-    branches: [main]
-    paths: ["workers/api/**"]
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          workingDirectory: workers/api
+**Get your Account ID**:
+
+Cloudflare dashboard → any Worker → right sidebar → **Account ID** → copy.
+
+**Add both to GitHub repo secrets**:
+
+```sh
+gh secret set CLOUDFLARE_API_TOKEN     # paste token when prompted
+gh secret set CLOUDFLARE_ACCOUNT_ID    # paste account id when prompted
 ```
+
+(Or via the web: GitHub repo → Settings → Secrets and variables → Actions → New repository secret.)
+
+**That's it.** Push to `main` → the workflow runs → `wrangler deploy` ships the new code. Watch progress at GitHub repo → Actions tab.
+
+**Worker secrets** (`DATAMILLNORTH_TOKEN`, `ADMIN_TOKEN`) are stored on Cloudflare's side and persist across deploys — you only ever set them once.
+
+**Manual re-run**: GitHub repo → Actions → "Deploy Worker" → "Run workflow" button.
 
 ## Day-to-day
 
