@@ -34,6 +34,7 @@ let deptChart = null;
 let suppliersChart = null;
 let trendChart = null;
 let currentSummary = null;
+let periodCatalogue = null; // full /api/spending/periods response, used to expand year-period → months for L4
 
 // Bootstrap ----------------------------------------------------------------
 
@@ -45,6 +46,7 @@ async function bootstrap() {
       getSpendingPeriods(),
       getSpendingTrend(),
     ]);
+    periodCatalogue = catalogue;
     populatePeriodPicker(catalogue);
     renderTrend(trend.months);
     const initialId =
@@ -196,13 +198,9 @@ function showPurposeDrilldown(s, unit, division) {
   closeTransactions();
   document.getElementById("dept-chart-title").textContent = `${unit.name} › ${division.name}`;
   const purposeCount = (division.purposes || []).length;
-  const monthlyDrill = s.periodKind === "month";
-  const action = monthlyDrill
-    ? "Click a slice to see individual transactions."
-    : "Drill to a specific month (in the picker above) to open the individual transactions.";
   document.getElementById("dept-chart-caption").textContent =
     purposeCount
-      ? `${fmtCurrency.format(division.amount)} across ${purposeCount} purpose${purposeCount === 1 ? "" : "s"}. ${action}`
+      ? `${fmtCurrency.format(division.amount)} across ${purposeCount} purpose${purposeCount === 1 ? "" : "s"}. Click a slice to see individual transactions.`
       : `${fmtCurrency.format(division.amount)}. No purpose breakdown available.`;
   setBack(`Back to ${unit.name}`, () => showDivisionDrilldown(s, unit));
   if (!purposeCount) {
@@ -211,46 +209,74 @@ function showPurposeDrilldown(s, unit, division) {
   }
   renderDonut(
     { labels: division.purposes.map((p) => p.name), values: division.purposes.map((p) => p.amount) },
-    monthlyDrill ? (i) => showTransactions(s, unit, division, division.purposes[i]) : null,
+    (i) => showTransactions(s, unit, division, division.purposes[i]),
   );
 }
 
 async function showTransactions(s, unit, division, purpose) {
-  // "Other purposes (N)" is an aggregate bucket — it doesn't map to a real purpose row.
+  const title = `${unit.name} › ${division.name} › ${purpose.name}`;
+
+  // "Other purposes (N)" is a roll-up — there's no single transaction list for it.
   if (/^Other purposes \(/.test(purpose.name)) {
     openTransactionsPanel({
-      title: `${unit.name} › ${division.name} › ${purpose.name}`,
+      title,
       caption: "This bucket aggregates the long tail of small purposes — there's no single transaction list for it.",
       rows: [],
     });
     return;
   }
 
+  // Decide which months to query. For monthly views: just that month.
+  // For year/YTD views: every month in the period (look up from the catalogue).
+  let months = [s.periodId];
+  let multiMonth = false;
+  if (s.periodKind !== "month") {
+    const entry = periodCatalogue?.periods.find((p) => p.id === s.periodId);
+    if (entry?.months?.length) {
+      months = entry.months;
+      multiMonth = true;
+    }
+  }
+
   openTransactionsPanel({
-    title: `${unit.name} › ${division.name} › ${purpose.name}`,
-    caption: "Loading transactions…",
+    title,
+    caption: multiMonth
+      ? `Loading transactions across ${months.length} months…`
+      : "Loading transactions…",
     rows: [],
   });
 
   try {
-    const data = await getSpendingTransactions(s.periodId, unit.name, division.name, purpose.name);
-    const cap = s.transactionsCapPerLeaf || 100;
-    const txns = data.transactions || [];
-    const caption = txns.length
-      ? `${txns.length} transactions${txns.length >= cap ? ` (top ${cap} by amount; tail truncated)` : ""}, ${fmtCurrency.format(purpose.amount)} total.`
-      : "No matching transactions in the source CSV.";
-    openTransactionsPanel({
-      title: `${unit.name} › ${division.name} › ${purpose.name}`,
-      caption,
-      rows: txns,
-    });
+    const results = await Promise.all(
+      months.map((m) =>
+        getSpendingTransactions(m, unit.name, division.name, purpose.name).catch(() => ({ transactions: [] })),
+      ),
+    );
+    let all = [];
+    for (const r of results) {
+      for (const t of r.transactions || []) all.push(t);
+    }
+    // Sort by absolute amount descending so the largest payments come first.
+    all.sort((a, b) => Math.abs(b.a) - Math.abs(a.a));
+    const DISPLAY_LIMIT = 200;
+    const truncated = all.length > DISPLAY_LIMIT;
+    if (truncated) all = all.slice(0, DISPLAY_LIMIT);
+
+    let caption;
+    if (!all.length) {
+      caption = "No matching transactions in the source CSV.";
+    } else if (multiMonth) {
+      const cap = 100; // per-month cap inside each KV blob
+      caption = `${all.length} transactions${truncated ? ` (showing top ${DISPLAY_LIMIT} of more)` : ""}, ${fmtCurrency.format(purpose.amount)} total across ${months.length} months. Each month contributes up to ${cap} of its largest transactions.`;
+    } else {
+      const cap = s.transactionsCapPerLeaf || 100;
+      caption = `${all.length} transactions${all.length >= cap ? ` (top ${cap} by amount; tail truncated)` : ""}, ${fmtCurrency.format(purpose.amount)} total.`;
+    }
+
+    openTransactionsPanel({ title, caption, rows: all });
   } catch (err) {
     console.error(err);
-    openTransactionsPanel({
-      title: `${unit.name} › ${division.name} › ${purpose.name}`,
-      caption: `Failed to load transactions: ${err.message}`,
-      rows: [],
-    });
+    openTransactionsPanel({ title, caption: `Failed to load transactions: ${err.message}`, rows: [] });
   }
 }
 

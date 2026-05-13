@@ -249,6 +249,7 @@ async function main() {
       kind: period.kind,
       label: period.label,
       monthCount: period.months.length,
+      months: period.months,            // exposed so the UI can fan-out L4 fetches
       totalAmount: summary.totalAmount,
     })),
     aggregationVersion: AGGREGATION_VERSION,
