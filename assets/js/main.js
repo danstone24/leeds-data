@@ -1,13 +1,11 @@
 // Page bootstrap. Kept tiny on purpose — each topic page will import its own chart modules.
 import { pingApi } from "./api.js";
 
-const REPO_URL = "https://github.com/"; // updated once the repo is created
+const REPO_URL = "https://github.com/danstone24/leeds-data";
 
 function setRepoLink() {
   const link = document.getElementById("repo-link");
-  if (link && REPO_URL !== "https://github.com/") {
-    link.href = REPO_URL;
-  }
+  if (link) link.href = REPO_URL;
 }
 
 async function showApiStatus() {

@@ -146,8 +146,8 @@ See [docs/data-sources.md](docs/data-sources.md) for the curated list of dataset
 **Last updated**: 2026-05-13
 
 - [x] Stack chosen, repo scaffolded
-- [ ] GitHub repo created and connected to Cloudflare Pages
-- [ ] Cloudflare Pages live at leedsdata.co.uk
+- [x] GitHub repo created at https://github.com/danstone24/leeds-data
+- [ ] Cloudflare Pages connected to repo and live at leedsdata.co.uk
 - [ ] First Worker deployed at /api/health
 - [ ] First dataset wired up end-to-end
 - [ ] About / methodology page
