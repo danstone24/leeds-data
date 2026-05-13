@@ -14,6 +14,7 @@ import { parseCsvObjects } from "./csv.js";
 const DATASET_ID = "2gpp0";
 const TOP_SUPPLIERS = 20;
 const LARGEST_TXNS = 10;
+const TOP_PURPOSES_PER_DIVISION = 12; // long-tail purposes get bundled as "Other purposes"
 
 // Normalise a free-text field. The council's CSVs publish the same logical
 // value under several spellings within the same file (e.g. "Adults & Health"
@@ -100,7 +101,11 @@ export async function buildMonthlySummary(month, resource, stream) {
 
     const u = byUnit.get(unit) || { amount: 0, divisions: new Map() };
     u.amount += r.amount;
-    u.divisions.set(division, (u.divisions.get(division) || 0) + r.amount);
+    const div = u.divisions.get(division) || { amount: 0, purposes: new Map() };
+    div.amount += r.amount;
+    const purpose = r.purpose || "Unspecified purpose";
+    div.purposes.set(purpose, (div.purposes.get(purpose) || 0) + r.amount);
+    u.divisions.set(division, div);
     byUnit.set(unit, u);
 
     const s = bySupplier.get(r.supplier) || { amount: 0, count: 0 };
@@ -131,7 +136,22 @@ export async function buildMonthlySummary(month, resource, stream) {
       amount: round2(amount),
       share: totalAmount ? amount / totalAmount : 0,
       divisions: [...divisions.entries()]
-        .map(([dname, damount]) => ({ name: dname, amount: round2(damount) }))
+        .map(([dname, { amount: damount, purposes }]) => {
+          const sortedPurposes = [...purposes.entries()]
+            .map(([pname, pamount]) => ({ name: pname, amount: pamount }))
+            .sort((a, b) => b.amount - a.amount);
+          const top = sortedPurposes.slice(0, TOP_PURPOSES_PER_DIVISION);
+          const tail = sortedPurposes.slice(TOP_PURPOSES_PER_DIVISION);
+          if (tail.length) {
+            const otherAmount = tail.reduce((s, p) => s + p.amount, 0);
+            top.push({ name: `Other purposes (${tail.length})`, amount: otherAmount });
+          }
+          return {
+            name: dname,
+            amount: round2(damount),
+            purposes: top.map((p) => ({ name: p.name, amount: round2(p.amount) })),
+          };
+        })
         .sort((a, b) => b.amount - a.amount),
     }))
     .sort((a, b) => b.amount - a.amount);

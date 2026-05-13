@@ -22,7 +22,7 @@ import { buildMonthlySummary } from "../src/spending.js";
 
 // Bump this when buildMonthlySummary's logic or output shape changes — it
 // invalidates every stored hash so the next run re-aggregates everything.
-const AGGREGATION_VERSION = "v2";
+const AGGREGATION_VERSION = "v3";
 
 const {
   CLOUDFLARE_API_TOKEN,

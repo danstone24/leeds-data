@@ -103,77 +103,84 @@ function renderStats(s) {
 
 function renderDepartments(s) {
   showDeptOverview(s);
-  document.getElementById("dept-back").onclick = () => showDeptOverview(s);
+}
+
+// Render a donut at any level (departments / divisions / purposes).
+function renderDonut({ labels, values }, onClick) {
+  deptChart?.destroy();
+  deptChart = new Chart(document.getElementById("dept-chart"), {
+    type: "doughnut",
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: cycle(palette(), labels.length),
+        borderColor: getComputedStyle(document.documentElement).getPropertyValue("--color-bg-elevated").trim(),
+        borderWidth: 2,
+      }],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: "55%",
+      plugins: {
+        legend: { position: "right", labels: { color: textColor() } },
+        tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${fmtCurrency.format(ctx.parsed)}` } },
+      },
+      onClick: onClick ? (_evt, els) => { if (els.length) onClick(els[0].index); } : undefined,
+    },
+  });
+}
+
+function setBack(label, handler) {
+  const btn = document.getElementById("dept-back");
+  if (!handler) {
+    btn.hidden = true;
+    btn.onclick = null;
+  } else {
+    btn.hidden = false;
+    btn.textContent = `← ${label}`;
+    btn.onclick = handler;
+  }
 }
 
 function showDeptOverview(s) {
   document.getElementById("dept-chart-title").textContent = "By department";
   document.getElementById("dept-chart-caption").textContent =
     "Click a slice to see the divisions inside that department.";
-  document.getElementById("dept-back").hidden = true;
-
-  const labels = s.byOrganisationalUnit.map((u) => u.name);
-  const data = s.byOrganisationalUnit.map((u) => u.amount);
-
-  deptChart?.destroy();
-  deptChart = new Chart(document.getElementById("dept-chart"), {
-    type: "doughnut",
-    data: {
-      labels,
-      datasets: [{
-        data,
-        backgroundColor: cycle(palette(), labels.length),
-        borderColor: getComputedStyle(document.documentElement).getPropertyValue("--color-bg-elevated").trim(),
-        borderWidth: 2,
-      }],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: "55%",
-      plugins: {
-        legend: { position: "right", labels: { color: textColor() } },
-        tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${fmtCurrency.format(ctx.parsed)}` } },
-      },
-      onClick: (_evt, els) => {
-        if (!els.length) return;
-        const unit = s.byOrganisationalUnit[els[0].index];
-        showDeptDrilldown(unit);
-      },
-    },
-  });
+  setBack(null);
+  renderDonut(
+    { labels: s.byOrganisationalUnit.map((u) => u.name), values: s.byOrganisationalUnit.map((u) => u.amount) },
+    (i) => showDivisionDrilldown(s, s.byOrganisationalUnit[i]),
+  );
 }
 
-function showDeptDrilldown(unit) {
+function showDivisionDrilldown(s, unit) {
   document.getElementById("dept-chart-title").textContent = unit.name;
   document.getElementById("dept-chart-caption").textContent =
-    `${fmtCurrency.format(unit.amount)} across ${unit.divisions.length} divisions.`;
-  document.getElementById("dept-back").hidden = false;
+    `${fmtCurrency.format(unit.amount)} across ${unit.divisions.length} divisions. Click a slice to see what the money was spent on.`;
+  setBack("Back to all departments", () => showDeptOverview(s));
+  renderDonut(
+    { labels: unit.divisions.map((d) => d.name), values: unit.divisions.map((d) => d.amount) },
+    (i) => showPurposeDrilldown(s, unit, unit.divisions[i]),
+  );
+}
 
-  const labels = unit.divisions.map((d) => d.name);
-  const data = unit.divisions.map((d) => d.amount);
-
-  deptChart?.destroy();
-  deptChart = new Chart(document.getElementById("dept-chart"), {
-    type: "doughnut",
-    data: {
-      labels,
-      datasets: [{
-        data,
-        backgroundColor: cycle(palette(), labels.length),
-        borderColor: getComputedStyle(document.documentElement).getPropertyValue("--color-bg-elevated").trim(),
-        borderWidth: 2,
-      }],
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: "55%",
-      plugins: {
-        legend: { position: "right", labels: { color: textColor() } },
-        tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${fmtCurrency.format(ctx.parsed)}` } },
-      },
-    },
+function showPurposeDrilldown(s, unit, division) {
+  document.getElementById("dept-chart-title").textContent = `${unit.name} › ${division.name}`;
+  const purposeCount = (division.purposes || []).length;
+  document.getElementById("dept-chart-caption").textContent =
+    purposeCount
+      ? `${fmtCurrency.format(division.amount)} across ${purposeCount} purpose${purposeCount === 1 ? "" : "s"}.`
+      : `${fmtCurrency.format(division.amount)}. No purpose breakdown available.`;
+  setBack(`Back to ${unit.name}`, () => showDivisionDrilldown(s, unit));
+  if (!purposeCount) {
+    deptChart?.destroy();
+    return;
+  }
+  renderDonut({
+    labels: division.purposes.map((p) => p.name),
+    values: division.purposes.map((p) => p.amount),
   });
 }
 
