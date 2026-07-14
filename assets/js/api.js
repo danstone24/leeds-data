@@ -40,3 +40,7 @@ export function getPotholesPoints() {
 export function getCollisionsSummary() {
   return getJson("/api/collisions/summary");
 }
+
+export function getCountsSummary(kind) {
+  return getJson(`/api/counts/${kind}/summary`);
+}

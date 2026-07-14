@@ -105,6 +105,27 @@ URLs on the site look like `https://datamillnorth.org/dataset/<slug>-<id>`. The 
 - **Worker route**: `GET /api/collisions/summary`
 - **Chart**: [pages/collisions.html](../pages/collisions.html), [assets/js/charts/collisions.js](../assets/js/charts/collisions.js). Chart.js only — casualties-by-severity, KSI trend, casualty class, and by-hour-of-day.
 
+### Cycle & traffic counters (twins)
+
+Two datasets with an **identical schema**, so they share one aggregator (`counts.js`) and one page. Presented together as a "modal shift" story.
+
+- **Datasets**:
+  - [Leeds annual cycle growth](https://datamillnorth.org/dataset/leeds-annual-cycle-growth-e1dmk) (id `e1dmk`) — ~28 cycle counters.
+  - [Leeds annual traffic growth](https://datamillnorth.org/dataset/leeds-annual-traffic-growth-e6q0n) (id `e6q0n`) — ~29 vehicle counters.
+- **Resources**: one CSV per month of **hourly, per-lane** counts (~2–4 MB each), plus small recorder-location docs. Some giant historical annual dumps (8–30 MB) exist and are deliberately skipped (see size cap below).
+- **Schema**: `Sdate` (DD/MM/YYYY HH:MM), `Cosit` (recorder id), `Period`, `LaneNumber`, `LaneDescription`, `LaneDirection`, `DirectionDescription`, `Volume` (count), `Flag Text` (`Checked` / `Estimate,Checked`).
+- **Why we use them**: "is investment in cycling paying off / do you still need a car?" — cycling vs motor-traffic trend.
+- **The key gotcha — comparability**: the set of *working* recorders changes a lot month to month (e.g. traffic had only ~10 of 29 reporting in May 2024; cycle dropped 13 West-Yorkshire recorders in June 2024). **Raw totals are meaningless for a trend.** We normalise to **mean daily flow per recorder** = total volume ÷ number of (recorder, day) pairs that reported. It still assumes the live recorders are representative — the page says so.
+- **Other quirks** (handled in `counts.js`):
+  - File titles/timeframes are unreliable (many say only a year) — we bucket every row by its in-row `Sdate` instead.
+  - `Cosit` is zero-padded in some files (`000000100643`) and bare in others (`90810`) — normalise by stripping leading zeros to join with locations and count recorders once.
+  - Location docs differ: cycle gives `Latitude`/`Longitude`; traffic gives OSGB grid `X`/`Y` which we convert via `osgbToWgs84` (imported from `potholes.js`). The cycle sites doc has a title row before the header — `fetchCsvRows` in refresh.mjs skips preamble.
+  - Refresh only ingests data files **50 KB–6 MB** (`COUNTS_MIN/MAX_BYTES`): below = tiny location docs, above = the old giant dumps we skip. Malformed/old-schema rows are safely no-ops (bad `Sdate`/`Volume` → skipped).
+  - Cycling is **strongly seasonal** (summer ≫ winter), so annual averages from years with few months are biased — the frontend needs ≥6 months before trusting a year for the index, and fades/flags partial years.
+- **KV layout**: `counts:<cycle|traffic>:summary` (monthly + yearly mean-daily-flow series + recorder sites), `counts:<cycle|traffic>:hash` (fingerprint).
+- **Worker route**: `GET /api/counts/<cycle|traffic>/summary`
+- **Chart**: [pages/getting-around.html](../pages/getting-around.html), [assets/js/charts/getting-around.js](../assets/js/charts/getting-around.js). Modal-shift index (both indexed to a common baseline year), per-mode annual trends, cycling seasonality, and a Leaflet map of recorder locations.
+
 ## Template for new entries
 
 ### <topic name>
