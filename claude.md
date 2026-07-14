@@ -178,8 +178,8 @@ See [docs/data-sources.md](docs/data-sources.md) for the curated list of dataset
 - [x] Third dataset (Road traffic collisions, id `2o11d`) — live at pages/collisions.html: casualties-by-severity, KSI (Vision Zero) trend, casualty class, by-hour-of-day. Handles two file formats + inconsistent labels (see `collisions.js`). Trend-only (coords only in pre-2017 files). No map.
 - [x] Fourth + fifth datasets (Cycle `e1dmk` + Traffic `e6q0n` growth twins) — live at pages/getting-around.html: combined "do you still need a car?" modal-shift page. Shared aggregator `counts.js` (identical schema). Normalises to **mean daily flow per recorder** because working-recorder counts vary month to month; buckets rows by in-row `Sdate` (titles unreliable); handles zero-padded Cosit and two location-doc formats. Charts: modal-shift index, per-mode annual trends, cycling seasonality, recorder map.
 - [x] Sixth dataset (City centre footfall, id `2rlld`) — live at pages/footfall.html: long-run footfall trend (pandemic crash + recovery), by-hour rhythm, by-weekday, busiest streets. The fiddly one: ~575 overlapping CSVs across 3 schema eras, deduped by (date,hour,camera) keeping max (prefers council's revised-up figures), camera renames folded, mean-daily-per-camera normalisation. See `footfall.js`.
-- [ ] About / methodology page
+- [x] About / methodology page — live at /about.html: why the site exists, where data comes from, how numbers are handled (two principles), a plain-English methodology note per dataset, how it's built, contact.
 
-Next: About page (methodology + data-quality caveats).
+All six planned datasets + the About page are now built. Next candidates: recycling/waste, planning applications, air quality (still "Coming soon" cards on the homepage).
 
 **Note for cycle/traffic**: the trend numbers only become real after a production refresh populates `counts:*` in KV. Sanity-check the actual modal-shift figures before promoting any specific % claim — the aggregator is verified but the live trend hasn't been eyeballed yet.

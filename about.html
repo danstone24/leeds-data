@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>About &amp; methodology — Leeds Data</title>
+    <meta
+      name="description"
+      content="What Leeds Data is, where the numbers come from, how the site is built, and how we handle the quirks in each dataset."
+    />
+    <meta name="theme-color" content="#006a4e" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23006a4e'/%3E%3Ctext x='50' y='68' font-family='system-ui,sans-serif' font-weight='700' font-size='60' fill='white' text-anchor='middle'%3EL%3C/text%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="/assets/css/style.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a href="/" class="brand">
+          <span class="brand-mark" aria-hidden="true">L</span>
+          <span class="brand-name">Leeds Data</span>
+        </a>
+        <nav class="site-nav" aria-label="Primary">
+          <a href="/about.html">About</a>
+          <a href="https://datamillnorth.org" rel="noopener">Datamillnorth</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="topic-hero">
+        <div class="container">
+          <p class="hero-eyebrow">About</p>
+          <h1 class="hero-title">About this site</h1>
+          <p class="hero-lede">
+            Leeds Data turns the open data that Leeds City Council publishes into
+            charts anyone can read — no spreadsheets, no jargon, just the numbers
+            behind how the city is doing.
+          </p>
+        </div>
+      </section>
+
+      <section class="container chart-section">
+        <div class="prose">
+          <h2>Why it exists</h2>
+          <p>
+            The council publishes hundreds of datasets — on potholes, spending,
+            road safety, traffic, footfall and more — at
+            <a href="https://datamillnorth.org" rel="noopener">Datamillnorth.org</a>.
+            It's genuinely open, which is great, but most of it is raw CSV files
+            that only make sense if you're comfortable with a spreadsheet. This
+            site exists so that residents, journalists and councillors can see at
+            a glance how Leeds is performing, without doing any of that work.
+          </p>
+          <p>
+            Every chart is built to answer a plain question — <em>are our roads
+            getting safer? how fast are potholes fixed? do you still need a car?</em>
+            — rather than just dumping numbers on a page.
+          </p>
+
+          <h2>Where the numbers come from</h2>
+          <p>
+            <strong>Everything here comes straight from Leeds City Council's own
+            published data.</strong> We don't add our own estimates or opinions to
+            the figures. Each topic page links back to the exact dataset it uses,
+            and shows when it was last updated, so you can always check the source
+            yourself. The data is published under the
+            <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/" rel="noopener">Open Government Licence</a>.
+          </p>
+          <p>
+            The site checks for new data from the council every night, so the
+            charts stay current as fresh figures are published — usually monthly
+            or quarterly, depending on the dataset.
+          </p>
+
+          <h2>How we handle the numbers</h2>
+          <p>
+            Council data is often messy: files change format over the years,
+            labels are spelled inconsistently, and some records are incomplete.
+            We clean and standardise where it's clearly safe to, and we're honest
+            about the limits. Two principles guide everything:
+          </p>
+          <ul>
+            <li>
+              <strong>We show what the council published — we don't invent data.</strong>
+              Where records are missing or unclear, we say so rather than filling
+              gaps with guesses.
+            </li>
+            <li>
+              <strong>We make fair comparisons.</strong> When the number of
+              sensors or cameras behind a dataset changes over time, raw totals
+              become misleading, so we average per sensor instead — which keeps a
+              trend fair as equipment comes and goes.
+            </li>
+          </ul>
+
+          <h2>How each dataset is treated</h2>
+          <p>
+            A short, plain-English note on the main quirk behind each page:
+          </p>
+        </div>
+
+        <ul class="method-list">
+          <li>
+            <h3><a href="/pages/spending.html">Council spending</a></h3>
+            <p>
+              Taken directly from the council's transaction files. Most rows leave
+              the department blank, so we infer it from the service area where
+              there's a clear match; what we can't place is shown as "other".
+              Supplier names aren't standardised, so the same company can appear
+              under slightly different spellings.
+            </p>
+          </li>
+          <li>
+            <h3><a href="/pages/potholes.html">Potholes &amp; road repairs</a></h3>
+            <p>
+              One row per recorded pothole. "Time to fix" is the gap between the
+              report and completion dates; potholes still awaiting repair are left
+              out of that figure. Locations are converted from Ordnance Survey grid
+              references to map coordinates; a few records have no location and
+              don't appear on the map, but still count in the totals.
+            </p>
+          </li>
+          <li>
+            <h3><a href="/pages/collisions.html">Road safety &amp; collisions</a></h3>
+            <p>
+              One row per injured casualty, from police records, so a single crash
+              can produce several. The council changed its file format around 2017
+              — older years spell severity out, newer ones use codes — which we
+              standardise. Only reported injuries appear; minor knocks that go
+              unreported don't.
+            </p>
+          </li>
+          <li>
+            <h3><a href="/pages/getting-around.html">Getting around (cycling &amp; traffic)</a></h3>
+            <p>
+              Counts from recorders on routes around Leeds. The set of working
+              recorders changes month to month, so we use the average count per
+              recorder per day rather than raw totals. Cycling is very seasonal, so
+              years with only a few months of data are treated with caution.
+            </p>
+          </li>
+          <li>
+            <h3><a href="/pages/footfall.html">City centre footfall</a></h3>
+            <p>
+              Eight cameras count people passing, hour by hour. The published files
+              overlap heavily and have changed format several times since 2008, and
+              cameras have been renamed; we merge everything, de-duplicate each hour,
+              and keep the council's later, revised (higher) figures where they
+              conflict. As with the traffic counters, we average per camera.
+            </p>
+          </li>
+        </ul>
+
+        <div class="prose">
+          <h2>How the site is built</h2>
+          <p>
+            Leeds Data is a small, deliberately simple site. It's a set of plain web
+            pages hosted on a global content network, with a nightly job that
+            downloads any new council data, crunches it, and stores ready-made
+            summaries for the pages to load. There's no tracking and no adverts.
+            The whole thing is open source — you can read every line, including the
+            exact steps used to process each dataset, on
+            <a href="https://github.com/danstone24/leeds-data" rel="noopener">GitHub</a>.
+          </p>
+
+          <h2>Get in touch</h2>
+          <p>
+            Spotted a mistake, or want a particular dataset turned into a chart?
+            The best place to raise it is the
+            <a href="https://github.com/danstone24/leeds-data/issues" rel="noopener">GitHub issues page</a>.
+            Leeds Data is an independent project built by Dan Stone. It isn't
+            affiliated with or endorsed by Leeds City Council.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <p>
+          Data from
+          <a href="https://datamillnorth.org" rel="noopener">Datamillnorth.org</a>,
+          licensed under the
+          <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/" rel="noopener">Open Government Licence</a>.
+        </p>
+        <p>
+          Built by Dan Stone. Source on
+          <a href="https://github.com/danstone24/leeds-data" rel="noopener">GitHub</a>.
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>
