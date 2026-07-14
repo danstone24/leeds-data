@@ -176,7 +176,10 @@ See [docs/data-sources.md](docs/data-sources.md) for the curated list of dataset
 - [x] L4 drill: clicking a Purpose opens a transactions table for monthly views (top 100 per leaf, capped)
 - [x] Second dataset (Potholes, id `e7ylx`) — live at pages/potholes.html: stats, Leaflet map of every pothole (OSGB→WGS84 conversion in `potholes.js`), reported-vs-repaired trend, by-ward ranking, repair-time buckets. Refresh script now runs multiple datasets (spending + potholes), each isolated.
 - [x] Third dataset (Road traffic collisions, id `2o11d`) — live at pages/collisions.html: casualties-by-severity, KSI (Vision Zero) trend, casualty class, by-hour-of-day. Handles two file formats + inconsistent labels (see `collisions.js`). Trend-only (coords only in pre-2017 files). No map.
+- [x] Fourth + fifth datasets (Cycle `e1dmk` + Traffic `e6q0n` growth twins) — live at pages/getting-around.html: combined "do you still need a car?" modal-shift page. Shared aggregator `counts.js` (identical schema). Normalises to **mean daily flow per recorder** because working-recorder counts vary month to month; buckets rows by in-row `Sdate` (titles unreliable); handles zero-padded Cosit and two location-doc formats. Charts: modal-shift index, per-mode annual trends, cycling seasonality, recorder map.
 - [ ] About / methodology page
-- [ ] More datasets queued: Cycle+Traffic growth twins (`e1dmk`/`e6q0n`), Footfall (`2rlld`)
+- [ ] Footfall (`2rlld`) — the fiddly 578-file one, still queued.
 
-Next: About page (methodology + data-quality caveats), then the Cycle + Traffic growth twins (`e1dmk`/`e6q0n`) as a combined "do you still need a car?" modal-shift page.
+Next: About page (methodology + data-quality caveats). Then Footfall (`2rlld`) if wanted — its 578 overlapping/renamed resources make ingestion the whole job.
+
+**Note for cycle/traffic**: the trend numbers only become real after a production refresh populates `counts:*` in KV. Sanity-check the actual modal-shift figures before promoting any specific % claim — the aggregator is verified but the live trend hasn't been eyeballed yet.

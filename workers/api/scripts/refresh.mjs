@@ -13,6 +13,7 @@ import { listCsvResources, getDataset, streamCsv } from "../src/datamillnorth.js
 import { buildMonthlySummary, combineSummaries } from "../src/spending.js";
 import { buildPotholes, mergePotholeRow } from "../src/potholes.js";
 import { buildCollisions, isRealCollisionRow } from "../src/collisions.js";
+import { accumulateCountRow, finaliseCounts, parseSites } from "../src/counts.js";
 import { parseCsvObjects } from "../src/csv.js";
 
 // Bump this when buildMonthlySummary's logic or output shape changes — it
@@ -24,6 +25,14 @@ const POTHOLES_DATASET_ID = "e7ylx";
 // And collisions.
 const COLLISIONS_VERSION = "v1";
 const COLLISIONS_DATASET_ID = "2o11d";
+// And the cycle/traffic counters (shared aggregator).
+const COUNTS_VERSION = "v1";
+const COUNTS_DATASETS = { cycle: "e1dmk", traffic: "e6q0n" };
+// Site/metadata docs are tiny; the monthly count files are all >1 MB. We also
+// skip the few giant historical dumps (8–30 MB) — different era, and the
+// modal-shift story is about the recent monthly data.
+const COUNTS_MIN_BYTES = 50_000;
+const COUNTS_MAX_BYTES = 6_000_000;
 
 const {
   CLOUDFLARE_API_TOKEN,
@@ -378,6 +387,93 @@ async function refreshCollisions() {
   console.log("  wrote collisions:summary, collisions:hash");
 }
 
+// Read a small metadata CSV to row objects, skipping any preamble lines before
+// the real header (the cycle sites doc has a title row first).
+async function fetchCsvRows(url) {
+  const stream = await streamCsv(env, url);
+  const reader = stream.getReader();
+  const dec = new TextDecoder("windows-1252");
+  let text = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    text += dec.decode(value, { stream: true });
+  }
+  text += dec.decode();
+  const lines = text.split(/\r?\n/);
+  let headerIdx = lines.findIndex((l) => /site\s*id/i.test(l));
+  if (headerIdx < 0) headerIdx = 0;
+  const trimmed = lines.slice(headerIdx).join("\n");
+  const rows = [];
+  for await (const row of parseCsvObjects(new Response(trimmed).body)) rows.push(row);
+  return rows;
+}
+
+// Cycle & traffic counters share one aggregator (identical schema). Each file is
+// one month of hourly per-lane counts; we bucket by the in-row date rather than
+// trusting the file titles, which are unreliable.
+async function refreshCounts(kind) {
+  const datasetId = COUNTS_DATASETS[kind];
+  console.log(`Counts(${kind}): aggregating (version ${COUNTS_VERSION})…`);
+  const dataset = await getDataset(env, datasetId);
+  const resources = listCsvResources(dataset);
+  const siteDocs = resources.filter((r) => (r.size || 0) < COUNTS_MIN_BYTES);
+  const dataFiles = resources.filter(
+    (r) => (r.size || 0) >= COUNTS_MIN_BYTES && (r.size || 0) <= COUNTS_MAX_BYTES
+  );
+  if (!dataFiles.length) {
+    console.warn(`  no monthly count files found for ${kind} — skipping`);
+    return;
+  }
+
+  const fingerprint =
+    `${COUNTS_VERSION}:` +
+    [...dataFiles, ...siteDocs].map((r) => r.hash || `${r.id}:${r.size}`).sort().join(",");
+  const lastFingerprint = await kvGet(`counts:${kind}:hash`);
+  if (FORCE !== "1" && lastFingerprint === fingerprint) {
+    console.log("  ✓ unchanged, skipping");
+    return;
+  }
+
+  // Recorder locations (may be spread across more than one small doc).
+  const siteRows = [];
+  for (const doc of siteDocs) {
+    try {
+      siteRows.push(...(await fetchCsvRows(doc.url)));
+    } catch (err) {
+      console.warn(`  couldn't read site doc "${doc.title}": ${err.message}`);
+    }
+  }
+  const sites = parseSites(kind, siteRows);
+  console.log(`  ${sites.size} recorder locations`);
+
+  // Stream every monthly file through the accumulator.
+  const acc = new Map();
+  let ok = 0;
+  for (const r of dataFiles) {
+    try {
+      const stream = await streamCsv(env, r.url);
+      for await (const row of parseCsvObjects(stream)) accumulateCountRow(acc, row);
+      ok++;
+    } catch (err) {
+      console.warn(`  failed on "${r.title}": ${err.message}`);
+    }
+  }
+
+  const summary = finaliseCounts(kind, acc, sites);
+  const latest = summary.latest;
+  console.log(
+    `  ${ok}/${dataFiles.length} files · ${summary.coverage.from}–${summary.coverage.to} · ` +
+    `${summary.activeRecorders} recorders · latest ${latest?.year} mean daily flow ${latest?.meanDailyFlow} ${summary.unit}/recorder`
+  );
+
+  await kvBulkPut([
+    { key: `counts:${kind}:summary`, value: JSON.stringify(summary) },
+    { key: `counts:${kind}:hash`, value: fingerprint },
+  ]);
+  console.log(`  wrote counts:${kind}:summary, counts:${kind}:hash`);
+}
+
 function monthLabel(m) {
   const [y, mo] = m.split("-");
   const names = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -394,6 +490,8 @@ async function main() {
     ["spending", () => refreshSpending(startedAt)],
     ["potholes", () => refreshPotholes()],
     ["collisions", () => refreshCollisions()],
+    ["cycle", () => refreshCounts("cycle")],
+    ["traffic", () => refreshCounts("traffic")],
   ];
 
   let failed = false;
