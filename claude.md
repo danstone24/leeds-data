@@ -162,7 +162,7 @@ See [docs/data-sources.md](docs/data-sources.md) for the curated list of dataset
 
 ## Current status
 
-**Last updated**: 2026-05-13
+**Last updated**: 2026-07-14
 
 - [x] Stack chosen, repo scaffolded
 - [x] GitHub repo created at https://github.com/danstone24/leeds-data
@@ -174,7 +174,8 @@ See [docs/data-sources.md](docs/data-sources.md) for the curated list of dataset
 - [x] Spending page live at leedsdata.co.uk/pages/spending.html with cleaned-up data (cp1252 decoder, label normalisation, SD→Unit inference recovering ~93% of blank Org Units)
 - [x] Time-range filters (YTD, tax years, calendar years, months) via grouped period picker; aggregator combines monthly summaries server-side
 - [x] L4 drill: clicking a Purpose opens a transactions table for monthly views (top 100 per leaf, capped)
+- [x] Second dataset (Potholes, id `e7ylx`) — live at pages/potholes.html: stats, Leaflet map of every pothole (OSGB→WGS84 conversion in `potholes.js`), reported-vs-repaired trend, by-ward ranking, repair-time buckets. Refresh script now runs multiple datasets (spending + potholes), each isolated.
 - [ ] About / methodology page
-- [ ] Second dataset (potholes / planning / recycling?)
+- [ ] More datasets queued: Collisions (`2o11d`), Cycle+Traffic growth twins (`e1dmk`/`e6q0n`), Footfall (`2rlld`)
 
-Next: write an About page explaining methodology + data quality caveats, then pick a second dataset.
+Next: About page (methodology + data-quality caveats), then Road traffic collisions (`2o11d`) — small, clean, 15-yr KSI trend.
