@@ -28,3 +28,11 @@ export function getSpendingTransactions(month, unit, division, purpose) {
   const qs = new URLSearchParams({ unit, division, purpose });
   return getJson(`/api/spending/transactions/${month}?${qs}`);
 }
+
+export function getPotholesSummary() {
+  return getJson("/api/potholes/summary");
+}
+
+export function getPotholesPoints() {
+  return getJson("/api/potholes/points");
+}

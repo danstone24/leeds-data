@@ -11,10 +11,15 @@
 
 import { listCsvResources, getDataset, streamCsv } from "../src/datamillnorth.js";
 import { buildMonthlySummary, combineSummaries } from "../src/spending.js";
+import { buildPotholes, mergePotholeRow } from "../src/potholes.js";
+import { parseCsvObjects } from "../src/csv.js";
 
 // Bump this when buildMonthlySummary's logic or output shape changes — it
 // invalidates every stored hash so the next run re-aggregates everything.
 const AGGREGATION_VERSION = "v4";
+// Same idea for potholes: bump to force a re-aggregation of the pothole data.
+const POTHOLES_VERSION = "v1";
+const POTHOLES_DATASET_ID = "e7ylx";
 
 const {
   CLOUDFLARE_API_TOKEN,
@@ -159,9 +164,8 @@ function planPeriods(months) {
 
 // Main ----------------------------------------------------------------------
 
-async function main() {
-  const startedAt = new Date().toISOString();
-  console.log(`[${startedAt}] Refresh started (aggregation ${AGGREGATION_VERSION})`);
+async function refreshSpending(startedAt) {
+  console.log(`Spending: aggregating (version ${AGGREGATION_VERSION})…`);
 
   const dataset = await getDataset(env, DATASET_ID);
   const resources = listCsvResources(dataset);
@@ -276,10 +280,82 @@ async function main() {
   console.log(`Done. Latest month is now ${allMonths[0]}. Periods: ${catalogue.periods.map((p) => p.id).join(", ") || "(none)"}.`);
 }
 
+// Potholes: merge every CSV in the dataset, dedupe by Reference, aggregate.
+// The council republishes the whole record set quarterly, so the source is
+// small enough to reprocess wholesale whenever its fingerprint changes.
+async function refreshPotholes() {
+  console.log(`Potholes: aggregating (version ${POTHOLES_VERSION})…`);
+  const dataset = await getDataset(env, POTHOLES_DATASET_ID);
+  const resources = listCsvResources(dataset);
+  if (!resources.length) {
+    console.warn("  no CSV resources found — skipping potholes");
+    return;
+  }
+
+  const fingerprint =
+    `${POTHOLES_VERSION}:` + resources.map((r) => r.hash || `${r.id}:${r.size}`).sort().join(",");
+  const lastFingerprint = await kvGet("potholes:hash");
+  if (FORCE !== "1" && lastFingerprint === fingerprint) {
+    console.log("  ✓ unchanged, skipping");
+    return;
+  }
+
+  const byRef = new Map();
+  for (const r of resources) {
+    let n = 0;
+    const stream = await streamCsv(env, r.url);
+    for await (const row of parseCsvObjects(stream)) {
+      mergePotholeRow(byRef, row);
+      n++;
+    }
+    console.log(`  parsed "${r.title}": ${n} rows`);
+  }
+
+  const rows = [...byRef.values()];
+  const { summary, points } = buildPotholes(rows);
+  console.log(
+    `  ${rows.length} unique potholes · ${summary.fixedCount} fixed (median ${summary.medianFixDays}d) · ` +
+    `£${summary.totalCost.toLocaleString("en-GB")} · ${points.length} map points`
+  );
+
+  await kvBulkPut([
+    { key: "potholes:summary", value: JSON.stringify(summary) },
+    { key: "potholes:points", value: JSON.stringify(points) },
+    { key: "potholes:hash", value: fingerprint },
+  ]);
+  console.log("  wrote potholes:summary, potholes:points, potholes:hash");
+}
+
 function monthLabel(m) {
   const [y, mo] = m.split("-");
   const names = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   return `${names[Number(mo) - 1]} ${y}`;
+}
+
+// Run every dataset. Each is isolated so one failing doesn't sink the others;
+// we exit non-zero if any of them threw so CI surfaces the problem.
+async function main() {
+  const startedAt = new Date().toISOString();
+  console.log(`[${startedAt}] Refresh started`);
+
+  const datasets = [
+    ["spending", () => refreshSpending(startedAt)],
+    ["potholes", () => refreshPotholes()],
+  ];
+
+  let failed = false;
+  for (const [name, run] of datasets) {
+    try {
+      await run();
+    } catch (err) {
+      failed = true;
+      console.error(`Dataset "${name}" failed:`, err);
+    }
+  }
+
+  await kvBulkPut([{ key: "meta:last-refresh", value: startedAt }]);
+  console.log(`[${new Date().toISOString()}] Refresh finished${failed ? " (with errors)" : ""}.`);
+  if (failed) process.exit(1);
 }
 
 main().catch((err) => {

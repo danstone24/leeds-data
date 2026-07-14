@@ -13,6 +13,8 @@
 //   GET /api/spending/trend
 //   GET /api/spending/months
 //   GET /api/spending/transactions/<yyyy-mm>?unit=…&division=…&purpose=…
+//   GET /api/potholes/summary
+//   GET /api/potholes/points
 
 import {
   handleSummary,
@@ -20,6 +22,7 @@ import {
   handlePeriods,
   handleTransactions,
 } from "./spending.js";
+import { handlePotholesSummary, handlePotholesPoints } from "./potholes.js";
 
 const CORS_HEADERS = {
   "access-control-allow-origin": "*",
@@ -92,6 +95,19 @@ export default {
       const cat = await handlePeriods(env);
       if (!cat) return json({ error: "No data yet" }, { status: 503 });
       return json({ months: cat.months.map((m) => m.id) });
+    }
+
+    if (path === "/potholes/summary") {
+      const data = await handlePotholesSummary(env);
+      return data ? json(data) : json({ error: "No pothole data yet" }, { status: 503 });
+    }
+
+    if (path === "/potholes/points") {
+      const data = await handlePotholesPoints(env);
+      // Map points are heavier and change at most quarterly — cache hard.
+      return data
+        ? json({ points: data }, { headers: { "cache-control": "public, max-age=3600" } })
+        : json({ error: "No pothole map data yet" }, { status: 503 });
     }
 
     const txnMatch = path.match(/^\/spending\/transactions\/(\d{4}-\d{2})$/);

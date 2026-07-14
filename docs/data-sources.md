@@ -67,6 +67,26 @@ URLs on the site look like `https://datamillnorth.org/dataset/<slug>-<id>`. The 
   - `GET /api/spending/trend` → rolling 24-month totals
 - **Chart**: [pages/spending.html](../pages/spending.html), [assets/js/charts/spending.js](../assets/js/charts/spending.js)
 
+### Potholes & road repairs
+
+- **Dataset**: [Historic potholes data](https://datamillnorth.org/dataset/historic-potholes-data-e7ylx) (id `e7ylx`)
+- **Resources**: one CSV per year (currently a 2025 file and a rolling "to date" file), ~2–5 MB each. The council republishes the whole record set, so files overlap heavily.
+- **Coverage**: recorded potholes from ~Nov 2024 onwards (a few stray earlier rows exist). ~34k records so far.
+- **Update cadence**: refreshed automatically on the 1st day of each quarter. We pick up changes nightly via the resource fingerprint.
+- **Why we use it**: directly answers the flagship "potholes" question — how many, how fast they're fixed, where the hotspots are, and what it costs. First dataset with a map.
+- **Schema** (CSV columns): `Reference` (txn id), `Road`, `Ward`, `Defect`, `Recorded` (DD/MM/YYYY), `Completed` (DD/MM/YYYY, blank if still open), `Cost` (£), `Easting`, `Northing` (OSGB36 grid).
+- **Quirks**:
+  - Same pothole appears across yearly files — dedupe by `Reference`, preferring the copy that has a `Completed` date.
+  - `Defect` has two labels for the same thing (`Pothole Carriageway` / `Pothole Cwy`); all rows are carriageway potholes so we don't split on it.
+  - `Easting`/`Northing` are OSGB36 National Grid, not lat/long. We convert in `potholes.js` (`osgbToWgs84`) via inverse Transverse Mercator + a Helmert datum shift — matches the OS worked example to 6 dp. ~500 rows have no coords and don't plot, but still count in the stats.
+  - `Cost` is the council's own recorded repair cost (unit-cost based; ~29 distinct values).
+  - "Time to fix" = `Completed` − `Recorded`; open potholes are excluded from that figure.
+- **KV layout**: `potholes:summary` (stats/trend/wards/buckets), `potholes:points` (`[lat, lon, code]` map array; code ≥0 = fixed in N days, -1 = open, -2 = fixed but duration unknown), `potholes:hash` (source fingerprint).
+- **Worker routes**:
+  - `GET /api/potholes/summary`
+  - `GET /api/potholes/points`
+- **Chart**: [pages/potholes.html](../pages/potholes.html), [assets/js/charts/potholes.js](../assets/js/charts/potholes.js). Uses Leaflet + markercluster for the map (CARTO basemap, light/dark aware).
+
 ## Template for new entries
 
 ### <topic name>
