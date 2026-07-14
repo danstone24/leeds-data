@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>How busy is the city? — Leeds Data</title>
+    <meta
+      name="description"
+      content="How busy is Leeds city centre? Footfall from 8 counting cameras — the trend since 2008, the pandemic crash and recovery, and the busiest times, days and streets."
+    />
+    <meta name="theme-color" content="#006a4e" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23006a4e'/%3E%3Ctext x='50' y='68' font-family='system-ui,sans-serif' font-weight='700' font-size='60' fill='white' text-anchor='middle'%3EL%3C/text%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="/assets/css/style.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a href="/" class="brand">
+          <span class="brand-mark" aria-hidden="true">L</span>
+          <span class="brand-name">Leeds Data</span>
+        </a>
+        <nav class="site-nav" aria-label="Primary">
+          <a href="/about.html">About</a>
+          <a href="https://datamillnorth.org" rel="noopener">Datamillnorth</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="topic-hero">
+        <div class="container">
+          <p class="hero-eyebrow">City centre footfall</p>
+          <h1 class="hero-title">How busy is the city?</h1>
+          <p class="hero-lede" id="summary-line">
+            Loading footfall counts from Leeds City Council&hellip;
+          </p>
+        </div>
+      </section>
+
+      <section class="container stat-grid" aria-label="Headline figures">
+        <div class="stat">
+          <span class="stat-label">People per camera per day <span class="since" id="latest-year"></span></span>
+          <span class="stat-value" id="stat-latest">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label" id="recovery-label">Vs before the pandemic</span>
+          <span class="stat-value" id="stat-recovery">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Busiest day</span>
+          <span class="stat-value" id="stat-day">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Busiest spot</span>
+          <span class="stat-value stat-value-sm" id="stat-spot">—</span>
+        </div>
+      </section>
+
+      <section class="container chart-section">
+        <h2>Footfall over the years</h2>
+        <p class="chart-caption">
+          Average people counted per camera per day, month by month. The
+          pandemic emptied the city centre in 2020 — this shows how far it has
+          come back since.
+        </p>
+        <div class="chart-canvas-wrap">
+          <canvas id="trend-chart" aria-label="Footfall per month over time"></canvas>
+        </div>
+      </section>
+
+      <section class="container chart-section">
+        <h2>The rhythm of the day</h2>
+        <p class="chart-caption">
+          Average footfall at a typical camera by hour, across all the data.
+          Leeds fills up through the morning to a lunchtime peak, then empties in
+          the evening.
+        </p>
+        <div class="chart-canvas-wrap">
+          <canvas id="hour-chart" aria-label="Footfall by hour of day"></canvas>
+        </div>
+      </section>
+
+      <section class="container chart-section">
+        <h2>Which days are busiest?</h2>
+        <p class="chart-caption">
+          Average footfall per camera by day of the week. Saturday is the big
+          shopping day; Sunday is the quietest.
+        </p>
+        <div class="chart-canvas-wrap">
+          <canvas id="weekday-chart" aria-label="Footfall by day of week"></canvas>
+        </div>
+      </section>
+
+      <section class="container chart-section">
+        <h2>The busiest streets</h2>
+        <p class="chart-caption" id="loc-caption">
+          Share of recent footfall by camera location. Briggate, the main
+          pedestrianised shopping street, dominates.
+        </p>
+        <div class="chart-canvas-wrap chart-tall">
+          <canvas id="loc-chart" aria-label="Footfall by location"></canvas>
+        </div>
+      </section>
+
+      <section class="container source-block">
+        <p>
+          <strong>Source:</strong>
+          <a id="source-link" href="https://datamillnorth.org/dataset/leeds-city-centre-footfall-data-2rlld" rel="noopener">City centre footfall on Datamillnorth</a>,
+          published by Leeds City Council. Last updated <span id="source-updated">—</span>.
+        </p>
+        <p class="muted">
+          Eight cameras count people walking past fixed points in the city
+          centre, hour by hour. The published files overlap heavily and have
+          changed format several times since 2008, and the cameras have been
+          renamed and occasionally relocated; we merge everything and de-duplicate
+          each hour, keeping the council's later, revised (higher) figures where
+          they conflict. Because the number of working cameras varies, we show the
+          <strong>average count per camera per day</strong> rather than raw totals.
+          Treat it as a good indicator of the trend, not a turnstile-exact count.
+        </p>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <p>
+          Data from
+          <a href="https://datamillnorth.org" rel="noopener">Datamillnorth.org</a>,
+          licensed under the
+          <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/" rel="noopener">Open Government Licence</a>.
+        </p>
+        <p>
+          Built by Dan Stone. Source on
+          <a href="https://github.com/danstone24/leeds-data" rel="noopener">GitHub</a>.
+        </p>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script type="module" src="/assets/js/charts/footfall.js" defer></script>
+  </body>
+</html>

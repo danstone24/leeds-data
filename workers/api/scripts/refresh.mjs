@@ -14,6 +14,7 @@ import { buildMonthlySummary, combineSummaries } from "../src/spending.js";
 import { buildPotholes, mergePotholeRow } from "../src/potholes.js";
 import { buildCollisions, isRealCollisionRow } from "../src/collisions.js";
 import { accumulateCountRow, finaliseCounts, parseSites } from "../src/counts.js";
+import { accumulateFootRow, finaliseFootfall } from "../src/footfall.js";
 import { parseCsvObjects } from "../src/csv.js";
 
 // Bump this when buildMonthlySummary's logic or output shape changes — it
@@ -33,6 +34,9 @@ const COUNTS_DATASETS = { cycle: "e1dmk", traffic: "e6q0n" };
 // modal-shift story is about the recent monthly data.
 const COUNTS_MIN_BYTES = 50_000;
 const COUNTS_MAX_BYTES = 6_000_000;
+// And footfall (the messy 575-file one).
+const FOOTFALL_VERSION = "v1";
+const FOOTFALL_DATASET_ID = "2rlld";
 
 const {
   CLOUDFLARE_API_TOKEN,
@@ -474,6 +478,52 @@ async function refreshCounts(kind) {
   console.log(`  wrote counts:${kind}:summary, counts:${kind}:hash`);
 }
 
+// Footfall: ~575 overlapping CSVs across three schema eras. We ignore titles,
+// key every row by (date, hour, camera) and keep the max on collision (see
+// footfall.js), then aggregate the deduped slots.
+async function refreshFootfall() {
+  console.log(`Footfall: aggregating (version ${FOOTFALL_VERSION})…`);
+  const dataset = await getDataset(env, FOOTFALL_DATASET_ID);
+  const resources = listCsvResources(dataset); // CSV only — PDFs/xlsx ignored
+  if (!resources.length) {
+    console.warn("  no CSV resources found — skipping footfall");
+    return;
+  }
+
+  const fingerprint =
+    `${FOOTFALL_VERSION}:` + resources.map((r) => r.hash || `${r.id}:${r.size}`).sort().join(",");
+  const lastFingerprint = await kvGet("footfall:hash");
+  if (FORCE !== "1" && lastFingerprint === fingerprint) {
+    console.log("  ✓ unchanged, skipping");
+    return;
+  }
+
+  const map = new Map();
+  let ok = 0;
+  for (const r of resources) {
+    try {
+      const stream = await streamCsv(env, r.url);
+      for await (const row of parseCsvObjects(stream)) accumulateFootRow(map, row);
+      ok++;
+    } catch (err) {
+      console.warn(`  failed on "${r.title}": ${err.message}`);
+    }
+  }
+  console.log(`  ${ok}/${resources.length} files → ${map.size.toLocaleString()} deduped hourly slots`);
+
+  const summary = finaliseFootfall(map);
+  console.log(
+    `  ${summary.cameras} cameras · ${summary.coverage.from}–${summary.coverage.to} · ` +
+    `latest ${summary.latest?.year} mean daily footfall ${summary.latest?.meanDaily}/camera`
+  );
+
+  await kvBulkPut([
+    { key: "footfall:summary", value: JSON.stringify(summary) },
+    { key: "footfall:hash", value: fingerprint },
+  ]);
+  console.log("  wrote footfall:summary, footfall:hash");
+}
+
 function monthLabel(m) {
   const [y, mo] = m.split("-");
   const names = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -492,6 +542,7 @@ async function main() {
     ["collisions", () => refreshCollisions()],
     ["cycle", () => refreshCounts("cycle")],
     ["traffic", () => refreshCounts("traffic")],
+    ["footfall", () => refreshFootfall()],
   ];
 
   let failed = false;

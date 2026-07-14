@@ -126,6 +126,23 @@ Two datasets with an **identical schema**, so they share one aggregator (`counts
 - **Worker route**: `GET /api/counts/<cycle|traffic>/summary`
 - **Chart**: [pages/getting-around.html](../pages/getting-around.html), [assets/js/charts/getting-around.js](../assets/js/charts/getting-around.js). Modal-shift index (both indexed to a common baseline year), per-mode annual trends, cycling seasonality, and a Leaflet map of recorder locations.
 
+### City centre footfall
+
+- **Dataset**: [Leeds city centre footfall data](https://datamillnorth.org/dataset/leeds-city-centre-footfall-data-2rlld) (id `2rlld`)
+- **Resources**: ~575 CSVs (+ 2 PDFs, 1 xlsx we ignore). 8 cameras counting people hourly. **The files overlap massively** (per-camera history dumps, weekly feeds, monthly feeds, "revised" re-issues) — the `timeframe` metadata is garbage.
+- **Coverage**: 2008 onwards.
+- **Why we use it**: "how busy is the city?" — the long footfall trend, the pandemic crash and recovery, and the busiest times/days/streets.
+- **The gotchas** (this is the fiddliest dataset — ingestion *is* the job; all handled in `footfall.js`):
+  - **Three schema eras**: 2008–2014 = one file *per camera* (`Date` DD/MM/YYYY, `Hour`, `LocationName`, `Count`); ~2015 = `TotalCount`/`FactoredTotalCount`, `Date` YYYY-MM-DD; 2020+ = `ReportCount`/`FactoredReportCount`, `Date` DD-Mon-YY. `Hour` is `0` or `00:00`. We read the count from `Count` ?? `TotalCount` ?? `ReportCount` (non-factored, the only one present in every era).
+  - **Heavy overlap** → key every row by `(date, hour, camera)` and keep the **max** on collision. The council warned older counts were under-reported and later revised upward, so max prefers the corrected figures.
+  - **Camera renames**: 8 physical cameras, renamed over time. `RENAME` folds the four documented old→new pairs (e.g. "Briggate at McDonalds" → "Briggate at Swan Street") so a camera is one series and isn't double-counted during a transition.
+  - Varying live-camera count → trend the **mean daily footfall per camera**, not raw totals (same normalisation as the counters).
+  - Malformed/analysis CSVs (e.g. "Christmas analysis 2017-2019") parse to nothing and are harmless.
+- **Memory note**: the refresh holds a dedupe map of ~1M+ `(date,hour,camera)` slots — fine in GitHub Actions, would never fit the Worker.
+- **KV layout**: `footfall:summary` (monthly + yearly mean-daily series, by-hour, by-weekday, busiest locations), `footfall:hash` (fingerprint).
+- **Worker route**: `GET /api/footfall/summary`
+- **Chart**: [pages/footfall.html](../pages/footfall.html), [assets/js/charts/footfall.js](../assets/js/charts/footfall.js). Long-run trend, by-hour rhythm, by-weekday, busiest-streets bar.
+
 ## Template for new entries
 
 ### <topic name>
