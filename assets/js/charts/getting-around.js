@@ -8,6 +8,10 @@ import { getCountsSummary } from "../api.js";
 // average — cycling is strongly seasonal, so a couple of winter months would
 // understate it badly.
 const MIN_MONTHS = 6;
+// Both networks only have continuous monthly data from 2022 onward — earlier
+// years are gappy (nothing 2012–2019) and 2020–21 are pandemic-distorted, which
+// would make any baseline misleading. Keep the comparison to the clean window.
+const MIN_YEAR = 2022;
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const MONTHS_LONG = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
@@ -50,7 +54,7 @@ async function bootstrap() {
   }
 }
 
-const usableYears = (s) => (s.yearly || []).filter((y) => y.monthsCovered >= MIN_MONTHS);
+const usableYears = (s) => (s.yearly || []).filter((y) => y.monthsCovered >= MIN_MONTHS && y.year >= MIN_YEAR);
 
 // The baseline is the earliest year that both modes cover well.
 function commonBaseline(cycle, traffic) {
@@ -114,7 +118,7 @@ function renderIndex(cycle, traffic) {
 
 function renderAnnual(canvasId, s, colour, noun) {
   const p = palette();
-  const years = (s.yearly || []).filter((y) => y.monthsCovered >= 3);
+  const years = (s.yearly || []).filter((y) => y.monthsCovered >= MIN_MONTHS && y.year >= MIN_YEAR);
   new Chart(document.getElementById(canvasId), {
     type: "bar",
     data: {
@@ -153,6 +157,7 @@ function renderAnnual(canvasId, s, colour, noun) {
 function seasonAverages(s) {
   const buckets = Array.from({ length: 12 }, () => ({ flow: 0, n: 0 }));
   for (const m of s.monthly || []) {
+    if (Number(m.month.slice(0, 4)) < MIN_YEAR) continue;
     const mi = Number(m.month.slice(5, 7)) - 1;
     if (mi >= 0 && mi < 12) { buckets[mi].flow += m.meanDailyFlow; buckets[mi].n += 1; }
   }
