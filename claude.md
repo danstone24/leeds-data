@@ -182,4 +182,6 @@ See [docs/data-sources.md](docs/data-sources.md) for the curated list of dataset
 
 All six planned datasets + the About page are now built. Next candidates: recycling/waste, planning applications, air quality (still "Coming soon" cards on the homepage).
 
+- **Air quality** is scoped but deliberately NOT built yet — see [docs/air-quality-plan.md](docs/air-quality-plan.md). Source is **DEFRA UK-AIR** (Leeds Centre, `site_id=LEED`), the site's first non-Datamillnorth source. Plan records the KPIs (NO₂/PM2.5/PM10 annual means vs UK legal limits + WHO guidelines), the file-format quirks, and the wiring. When built, update the "all data from Datamillnorth" wording above.
+
 **Note for cycle/traffic**: the trend numbers only become real after a production refresh populates `counts:*` in KV. Sanity-check the actual modal-shift figures before promoting any specific % claim — the aggregator is verified but the live trend hasn't been eyeballed yet.
