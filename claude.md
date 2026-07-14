@@ -175,7 +175,8 @@ See [docs/data-sources.md](docs/data-sources.md) for the curated list of dataset
 - [x] Time-range filters (YTD, tax years, calendar years, months) via grouped period picker; aggregator combines monthly summaries server-side
 - [x] L4 drill: clicking a Purpose opens a transactions table for monthly views (top 100 per leaf, capped)
 - [x] Second dataset (Potholes, id `e7ylx`) — live at pages/potholes.html: stats, Leaflet map of every pothole (OSGB→WGS84 conversion in `potholes.js`), reported-vs-repaired trend, by-ward ranking, repair-time buckets. Refresh script now runs multiple datasets (spending + potholes), each isolated.
+- [x] Third dataset (Road traffic collisions, id `2o11d`) — live at pages/collisions.html: casualties-by-severity, KSI (Vision Zero) trend, casualty class, by-hour-of-day. Handles two file formats + inconsistent labels (see `collisions.js`). Trend-only (coords only in pre-2017 files). No map.
 - [ ] About / methodology page
-- [ ] More datasets queued: Collisions (`2o11d`), Cycle+Traffic growth twins (`e1dmk`/`e6q0n`), Footfall (`2rlld`)
+- [ ] More datasets queued: Cycle+Traffic growth twins (`e1dmk`/`e6q0n`), Footfall (`2rlld`)
 
-Next: About page (methodology + data-quality caveats), then Road traffic collisions (`2o11d`) — small, clean, 15-yr KSI trend.
+Next: About page (methodology + data-quality caveats), then the Cycle + Traffic growth twins (`e1dmk`/`e6q0n`) as a combined "do you still need a car?" modal-shift page.

@@ -12,6 +12,7 @@
 import { listCsvResources, getDataset, streamCsv } from "../src/datamillnorth.js";
 import { buildMonthlySummary, combineSummaries } from "../src/spending.js";
 import { buildPotholes, mergePotholeRow } from "../src/potholes.js";
+import { buildCollisions, isRealCollisionRow } from "../src/collisions.js";
 import { parseCsvObjects } from "../src/csv.js";
 
 // Bump this when buildMonthlySummary's logic or output shape changes — it
@@ -20,6 +21,9 @@ const AGGREGATION_VERSION = "v4";
 // Same idea for potholes: bump to force a re-aggregation of the pothole data.
 const POTHOLES_VERSION = "v1";
 const POTHOLES_DATASET_ID = "e7ylx";
+// And collisions.
+const COLLISIONS_VERSION = "v1";
+const COLLISIONS_DATASET_ID = "2o11d";
 
 const {
   CLOUDFLARE_API_TOKEN,
@@ -326,6 +330,54 @@ async function refreshPotholes() {
   console.log("  wrote potholes:summary, potholes:points, potholes:hash");
 }
 
+// Collisions: one CSV per year (plus a Guidance file we ignore). Small enough
+// to reprocess wholesale whenever the fingerprint changes.
+async function refreshCollisions() {
+  console.log(`Collisions: aggregating (version ${COLLISIONS_VERSION})…`);
+  const dataset = await getDataset(env, COLLISIONS_DATASET_ID);
+  // Keep only the per-year files (title is a 4-digit year, with or without .csv).
+  const resources = listCsvResources(dataset).filter((r) =>
+    /^\d{4}$/.test((r.title || "").replace(/\.csv$/i, "").trim())
+  );
+  if (!resources.length) {
+    console.warn("  no year CSVs found — skipping collisions");
+    return;
+  }
+
+  const fingerprint =
+    `${COLLISIONS_VERSION}:` + resources.map((r) => r.hash || `${r.id}:${r.size}`).sort().join(",");
+  const lastFingerprint = await kvGet("collisions:hash");
+  if (FORCE !== "1" && lastFingerprint === fingerprint) {
+    console.log("  ✓ unchanged, skipping");
+    return;
+  }
+
+  const records = [];
+  for (const r of resources) {
+    const year = (r.title || "").replace(/\.csv$/i, "").trim();
+    let n = 0;
+    const stream = await streamCsv(env, r.url);
+    for await (const row of parseCsvObjects(stream)) {
+      if (!isRealCollisionRow(row)) continue; // skip padding rows
+      records.push({ year, row });
+      n++;
+    }
+    console.log(`  parsed ${year}: ${n} casualties`);
+  }
+
+  const { summary } = buildCollisions(records);
+  console.log(
+    `  ${summary.totalCasualties} casualties ${summary.coverage.from}–${summary.coverage.to} · ` +
+    `${summary.totalKsi} KSI · ${(summary.changeSinceStart * 100).toFixed(0)}% vs first year`
+  );
+
+  await kvBulkPut([
+    { key: "collisions:summary", value: JSON.stringify(summary) },
+    { key: "collisions:hash", value: fingerprint },
+  ]);
+  console.log("  wrote collisions:summary, collisions:hash");
+}
+
 function monthLabel(m) {
   const [y, mo] = m.split("-");
   const names = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -341,6 +393,7 @@ async function main() {
   const datasets = [
     ["spending", () => refreshSpending(startedAt)],
     ["potholes", () => refreshPotholes()],
+    ["collisions", () => refreshCollisions()],
   ];
 
   let failed = false;

@@ -36,3 +36,7 @@ export function getPotholesSummary() {
 export function getPotholesPoints() {
   return getJson("/api/potholes/points");
 }
+
+export function getCollisionsSummary() {
+  return getJson("/api/collisions/summary");
+}

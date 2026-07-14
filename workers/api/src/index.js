@@ -15,6 +15,7 @@
 //   GET /api/spending/transactions/<yyyy-mm>?unit=…&division=…&purpose=…
 //   GET /api/potholes/summary
 //   GET /api/potholes/points
+//   GET /api/collisions/summary
 
 import {
   handleSummary,
@@ -23,6 +24,7 @@ import {
   handleTransactions,
 } from "./spending.js";
 import { handlePotholesSummary, handlePotholesPoints } from "./potholes.js";
+import { handleCollisionsSummary } from "./collisions.js";
 
 const CORS_HEADERS = {
   "access-control-allow-origin": "*",
@@ -108,6 +110,11 @@ export default {
       return data
         ? json({ points: data }, { headers: { "cache-control": "public, max-age=3600" } })
         : json({ error: "No pothole map data yet" }, { status: 503 });
+    }
+
+    if (path === "/collisions/summary") {
+      const data = await handleCollisionsSummary(env);
+      return data ? json(data) : json({ error: "No collision data yet" }, { status: 503 });
     }
 
     const txnMatch = path.match(/^\/spending\/transactions\/(\d{4}-\d{2})$/);

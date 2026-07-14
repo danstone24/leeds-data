@@ -87,6 +87,24 @@ URLs on the site look like `https://datamillnorth.org/dataset/<slug>-<id>`. The 
   - `GET /api/potholes/points`
 - **Chart**: [pages/potholes.html](../pages/potholes.html), [assets/js/charts/potholes.js](../assets/js/charts/potholes.js). Uses Leaflet + markercluster for the map (CARTO basemap, light/dark aware).
 
+### Road safety & collisions
+
+- **Dataset**: [Road traffic collisions](https://datamillnorth.org/dataset/road-traffic-collisions-2o11d) (id `2o11d`)
+- **Resources**: one CSV per year, 2009 onwards (~130–450 KB each), plus a `Guidance` CSV that decodes the Stats19 numeric codes. One row per **injured casualty** (a crash with several casualties spans several rows).
+- **Coverage**: 2009–latest full year. ~36k casualties total.
+- **Update cadence**: roughly annual. We pick up changes nightly via the resource fingerprint.
+- **Why we use it**: the "are roads getting safer?" question. Long, clean KSI (killed or seriously injured) trend backing the city's Vision Zero goal.
+- **Schema**: changed around 2017. Common fields (names vary): `Reference Number`, `Number of vehicles`, `Date`/`Accident Date`, `Time`, road class/surface/lighting/weather, `Casualty Class`, `Casualty Severity`, `Sex`/`Age of Casualty`, vehicle type(s).
+- **Quirks** (this one's messy — handled in `collisions.js`):
+  - **Two file formats**: pre-2017 files spell values out (`Slight`, `Pedestrian`) and carry `Easting`/`Northing`; 2017+ files use Stats19 numeric codes (`1`/`2`/`3`), drop coordinates and **pad the file with blank trailing rows**. Drop rows with no `Reference Number`.
+  - **Inconsistent labels even within the "old" format**: casualty class appears as `Driver`, `Driver or rider`, `Driver/Rider` (2015 only) and numeric codes; 2014 is already numeric. The `CLASS`/`SEVERITY` maps in `collisions.js` cover every observed variant — audit raw values before trusting a new year.
+  - `Casualty Severity`: 1 = Fatal, 2 = Serious, 3 = Slight. **KSI** = fatal + serious.
+  - `Casualty Class`: 1 = Driver/rider, 2 = Passenger, 3 = Pedestrian.
+  - **No map**: coordinates only exist in the pre-2017 files, so a consistent map isn't possible. The page is trend-only.
+- **KV layout**: `collisions:summary` (yearly trend, severity/class splits, by-hour, totals), `collisions:hash` (fingerprint).
+- **Worker route**: `GET /api/collisions/summary`
+- **Chart**: [pages/collisions.html](../pages/collisions.html), [assets/js/charts/collisions.js](../assets/js/charts/collisions.js). Chart.js only — casualties-by-severity, KSI trend, casualty class, and by-hour-of-day.
+
 ## Template for new entries
 
 ### <topic name>
