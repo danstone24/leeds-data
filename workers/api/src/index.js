@@ -17,6 +17,7 @@
 //   GET /api/potholes/points
 //   GET /api/collisions/summary
 //   GET /api/counts/<cycle|traffic>/summary
+//   GET /api/footfall/summary
 
 import {
   handleSummary,
@@ -27,6 +28,7 @@ import {
 import { handlePotholesSummary, handlePotholesPoints } from "./potholes.js";
 import { handleCollisionsSummary } from "./collisions.js";
 import { handleCountsSummary } from "./counts.js";
+import { handleFootfallSummary } from "./footfall.js";
 
 const CORS_HEADERS = {
   "access-control-allow-origin": "*",
@@ -123,6 +125,11 @@ export default {
     if (countsMatch) {
       const data = await handleCountsSummary(env, countsMatch[1]);
       return data ? json(data) : json({ error: "No count data yet" }, { status: 503 });
+    }
+
+    if (path === "/footfall/summary") {
+      const data = await handleFootfallSummary(env);
+      return data ? json(data) : json({ error: "No footfall data yet" }, { status: 503 });
     }
 
     const txnMatch = path.match(/^\/spending\/transactions\/(\d{4}-\d{2})$/);

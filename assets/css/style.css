@@ -486,6 +486,12 @@ ul {
   letter-spacing: -0.01em;
 }
 
+/* For longer text values (e.g. a place name) that shouldn't be as large. */
+.stat-value-sm {
+  font-size: 1.15rem;
+  line-height: 1.25;
+}
+
 /* ----- Chart sections ----- */
 .chart-section {
   padding: var(--space-8) var(--space-6);

@@ -44,3 +44,7 @@ export function getCollisionsSummary() {
 export function getCountsSummary(kind) {
   return getJson(`/api/counts/${kind}/summary`);
 }
+
+export function getFootfallSummary() {
+  return getJson("/api/footfall/summary");
+}
