@@ -3,25 +3,16 @@
 // Chart.js is a page global.
 
 import { getFootfallSummary } from "../api.js";
+import { applyChartTheme, tokens, series, wash, axes } from "./theme.js";
 
 const fmtNumber = new Intl.NumberFormat("en-GB");
 const fmtSignedPct = (n) => `${n >= 0 ? "+" : "−"}${Math.abs(Math.round(n * 100))}%`;
-const fmtPct = (n) => `${Math.round(n * 100)}%`;
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const monthShort = (ym) => { const [y, m] = ym.split("-"); return `${MONTHS[+m - 1]} ${y.slice(2)}`; };
 const WEEK_ORDER = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 
-const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-const palette = () => ({
-  accent: css("--color-accent"),
-  amber: css("--chart-2"),
-  blue: css("--chart-3"),
-  text: css("--color-text"),
-  muted: css("--color-text-muted"),
-  grid: css("--color-border"),
-});
-
+applyChartTheme();
 bootstrap();
 
 async function bootstrap() {
@@ -76,20 +67,19 @@ function renderStats(s) {
 }
 
 function renderTrend(monthly) {
-  const p = palette();
+  const blue = series(1)[0];
   new Chart(document.getElementById("trend-chart"), {
     type: "line",
     data: {
       labels: monthly.map((m) => m.month),
       datasets: [{
-        label: "People per camera per day",
         data: monthly.map((m) => m.meanDaily),
-        borderColor: p.accent,
-        backgroundColor: `${p.accent}22`,
+        borderColor: blue,
+        backgroundColor: wash(blue),
         fill: true,
         tension: 0.25,
         pointRadius: 0,
-        borderWidth: 2,
+        pointHitRadius: 8,
       }],
     },
     options: {
@@ -105,27 +95,30 @@ function renderTrend(monthly) {
         },
       },
       scales: {
-        x: {
+        x: axes.x({
           ticks: {
-            color: p.muted, maxRotation: 0, autoSkip: true, maxTicksLimit: 10,
-            callback(v) { const lbl = this.getLabelForValue(v); return lbl.endsWith("-01") ? lbl.slice(0, 4) : ""; },
+            // Label January of even years only — autoSkip would land on
+            // arbitrary months and blank almost every tick.
+            autoSkip: false,
+            callback(v) {
+              const lbl = this.getLabelForValue(v);
+              return lbl.endsWith("-01") && Number(lbl.slice(0, 4)) % 2 === 0 ? lbl.slice(0, 4) : null;
+            },
           },
-          grid: { display: false },
-        },
-        y: { beginAtZero: true, ticks: { color: p.muted }, grid: { color: p.grid } },
+        }),
+        y: axes.y(),
       },
     },
   });
 }
 
 function renderHour(byHour) {
-  const p = palette();
   const label = (h) => `${String(h).padStart(2, "0")}:00`;
   new Chart(document.getElementById("hour-chart"), {
     type: "bar",
     data: {
       labels: byHour.map((h) => label(h.hour)),
-      datasets: [{ label: "People per camera", data: byHour.map((h) => h.avgPerCamera), backgroundColor: p.accent, borderRadius: 3 }],
+      datasets: [{ data: byHour.map((h) => h.avgPerCamera), backgroundColor: series(1)[0] }],
     },
     options: {
       responsive: true,
@@ -135,25 +128,36 @@ function renderHour(byHour) {
         tooltip: { callbacks: { label: (c) => `${fmtNumber.format(c.parsed.y)} people per camera, typical day` } },
       },
       scales: {
-        x: { ticks: { color: p.muted, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 }, grid: { display: false } },
-        y: { beginAtZero: true, ticks: { color: p.muted }, grid: { color: p.grid } },
+        x: axes.x({ ticks: { color: tokens().inkMuted, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } }),
+        y: axes.y(),
       },
     },
   });
 }
 
 function renderWeekday(byWeekday) {
-  const p = palette();
+  const blue = series(1)[0];
+  const orange = series(6)[5];
   const byName = new Map(byWeekday.map((w) => [w.day, w.avgPerCamera]));
+  const isWeekend = (d) => d === "Saturday" || d === "Sunday";
+
+  // The weekend emphasis hue sits near the 3:1 contrast line on paper, so the
+  // caption carries the actual weekend values in plain text (the relief rule).
+  const capEl = document.getElementById("weekday-caption");
+  if (capEl && byName.size) {
+    capEl.textContent =
+      `Average footfall per camera by day of the week. Saturday is the big shopping day ` +
+      `(${fmtNumber.format(byName.get("Saturday") || 0)} per camera); Sunday is the quietest ` +
+      `(${fmtNumber.format(byName.get("Sunday") || 0)}).`;
+  }
+
   new Chart(document.getElementById("weekday-chart"), {
     type: "bar",
     data: {
       labels: WEEK_ORDER,
       datasets: [{
-        label: "People per camera per day",
         data: WEEK_ORDER.map((d) => byName.get(d) || 0),
-        backgroundColor: WEEK_ORDER.map((d) => (d === "Saturday" || d === "Sunday" ? p.amber : p.accent)),
-        borderRadius: 4,
+        backgroundColor: WEEK_ORDER.map((d) => (isWeekend(d) ? orange : blue)),
       }],
     },
     options: {
@@ -164,21 +168,21 @@ function renderWeekday(byWeekday) {
         tooltip: { callbacks: { label: (c) => `${fmtNumber.format(c.parsed.y)} per camera/day` } },
       },
       scales: {
-        x: { ticks: { color: p.text }, grid: { display: false } },
-        y: { beginAtZero: true, ticks: { color: p.muted }, grid: { color: p.grid } },
+        x: axes.x({ ticks: { color: tokens().inkSecondary } }),
+        y: axes.y(),
       },
     },
   });
 }
 
 function renderLocations(locations) {
-  const p = palette();
+  const t = tokens();
   const top = locations.slice(0, 10);
   new Chart(document.getElementById("loc-chart"), {
     type: "bar",
     data: {
       labels: top.map((l) => l.name),
-      datasets: [{ label: "Share of footfall", data: top.map((l) => l.share * 100), backgroundColor: p.accent, borderRadius: 4 }],
+      datasets: [{ data: top.map((l) => l.share * 100), backgroundColor: series(1)[0], maxBarThickness: 18 }],
     },
     options: {
       indexAxis: "y",
@@ -189,8 +193,8 @@ function renderLocations(locations) {
         tooltip: { callbacks: { label: (c) => `${c.parsed.x.toFixed(1)}% of recent footfall` } },
       },
       scales: {
-        x: { beginAtZero: true, ticks: { color: p.muted, callback: (v) => `${v}%` }, grid: { color: p.grid } },
-        y: { ticks: { color: p.text, autoSkip: false }, grid: { display: false } },
+        x: axes.y({ position: "bottom", ticks: { color: t.inkMuted, callback: (v) => `${v}%` } }),
+        y: axes.x({ ticks: { color: t.inkSecondary, autoSkip: false, font: { size: 11 } } }),
       },
     },
   });

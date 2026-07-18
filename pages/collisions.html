@@ -8,17 +8,15 @@
       name="description"
       content="Are Leeds' roads getting safer? Road traffic casualties, serious injuries and deaths since 2009, drawn from police Stats19 data on Datamillnorth."
     />
-    <meta name="theme-color" content="#006a4e" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23006a4e'/%3E%3Ctext x='50' y='68' font-family='system-ui,sans-serif' font-weight='700' font-size='60' fill='white' text-anchor='middle'%3EL%3C/text%3E%3C/svg%3E" />
+    <meta name="theme-color" content="#f9f6ef" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1b1a17" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f9f6ef'/%3E%3Crect y='88' width='100' height='6' fill='%231c1b18'/%3E%3Ctext x='50' y='72' font-family='Georgia,serif' font-weight='700' font-size='72' fill='%231c1b18' text-anchor='middle'%3EL%3C/text%3E%3C/svg%3E" />
     <link rel="stylesheet" href="/assets/css/style.css" />
   </head>
   <body>
     <header class="site-header">
       <div class="container header-inner">
-        <a href="/" class="brand">
-          <span class="brand-mark" aria-hidden="true">L</span>
-          <span class="brand-name">Leeds Data</span>
-        </a>
+        <a href="/" class="brand">Leeds Data<span class="brand-mark">.</span></a>
         <nav class="site-nav" aria-label="Primary">
           <a href="/about.html">About</a>
           <a href="https://datamillnorth.org" rel="noopener">Datamillnorth</a>
@@ -26,10 +24,21 @@
       </div>
     </header>
 
+    <nav class="section-nav" aria-label="Topics">
+      <div class="container section-nav-inner">
+        <a href="/pages/spending.html">Spending</a>
+        <a href="/pages/potholes.html">Potholes</a>
+        <a href="/pages/collisions.html" aria-current="page">Road safety</a>
+        <a href="/pages/getting-around.html">Getting around</a>
+        <a href="/pages/footfall.html">Footfall</a>
+        <a href="/about.html">About</a>
+      </div>
+    </nav>
+
     <main>
       <section class="topic-hero">
         <div class="container">
-          <p class="hero-eyebrow">Road safety &amp; collisions</p>
+          <p class="hero-kicker">Road safety &amp; collisions</p>
           <h1 class="hero-title">Are our roads getting safer?</h1>
           <p class="hero-lede" id="summary-line">
             Loading road casualty figures from Leeds City Council&hellip;
@@ -56,52 +65,74 @@
         </div>
       </section>
 
-      <section class="container chart-section">
-        <h2>Casualties each year, by severity</h2>
-        <p class="chart-caption">
-          Every injured casualty recorded by West Yorkshire Police, split by how
-          serious the injury was. The total has fallen sharply since 2009, with a
-          steep dip in 2020 during the pandemic lockdowns.
-        </p>
-        <div class="chart-canvas-wrap">
-          <canvas id="severity-chart" aria-label="Casualties per year by severity"></canvas>
-        </div>
-      </section>
+      <div class="container">
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>Casualties each year, by severity</h2>
+            <p class="chart-caption">
+              Every injured casualty recorded by West Yorkshire Police, split by how
+              serious the injury was. The total has fallen sharply since 2009, with a
+              steep dip in 2020 during the pandemic lockdowns.
+            </p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="chart-canvas-wrap">
+              <canvas id="severity-chart" aria-label="Casualties per year by severity"></canvas>
+            </div>
+          </div>
+        </figure>
 
-      <section class="container chart-section">
-        <h2>The serious cases haven't followed</h2>
-        <p class="chart-caption">
-          Killed or seriously injured (KSI) is the measure behind the city's
-          "Vision Zero" ambition. Unlike the total, it has climbed back up since
-          the pandemic — the hardest injuries to prevent are proving stubborn.
-        </p>
-        <div class="chart-canvas-wrap">
-          <canvas id="ksi-chart" aria-label="Killed or seriously injured per year"></canvas>
-        </div>
-      </section>
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>The serious cases haven't followed</h2>
+            <p class="chart-caption">
+              Killed or seriously injured (KSI) is the measure behind the city's
+              "Vision Zero" ambition. Unlike the total, it has climbed back up since
+              the pandemic — the hardest injuries to prevent are proving stubborn.
+            </p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="chart-canvas-wrap">
+              <canvas id="ksi-chart" aria-label="Killed or seriously injured per year"></canvas>
+            </div>
+          </div>
+        </figure>
 
-      <section class="container chart-section">
-        <h2>Who gets hurt?</h2>
-        <p class="chart-caption">
-          Casualties split into drivers and riders, their passengers, and
-          pedestrians. Pedestrians are among the most vulnerable — they have no
-          vehicle around them.
-        </p>
-        <div class="chart-canvas-wrap">
-          <canvas id="class-chart" aria-label="Casualties by road-user type each year"></canvas>
-        </div>
-      </section>
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>Who gets hurt?</h2>
+            <p class="chart-caption">
+              Casualties split into drivers and riders, their passengers, and
+              pedestrians. Pedestrians are among the most vulnerable — they have no
+              vehicle around them.
+            </p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="chart-canvas-wrap">
+              <canvas id="class-chart" aria-label="Casualties by road-user type each year"></canvas>
+            </div>
+          </div>
+        </figure>
 
-      <section class="container chart-section">
-        <h2>When do crashes happen?</h2>
-        <p class="chart-caption">
-          Casualties by hour of the day, added up across every year. The evening
-          rush hour is the most dangerous time to be on Leeds' roads.
-        </p>
-        <div class="chart-canvas-wrap">
-          <canvas id="hour-chart" aria-label="Casualties by hour of day"></canvas>
-        </div>
-      </section>
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>When do crashes happen?</h2>
+            <p class="chart-caption">
+              Casualties by hour of the day, added up across every year. The evening
+              rush hour is the most dangerous time to be on Leeds' roads.
+            </p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="chart-canvas-wrap">
+              <canvas id="hour-chart" aria-label="Casualties by hour of day"></canvas>
+            </div>
+          </div>
+        </figure>
+      </div>
 
       <section class="container source-block">
         <p>

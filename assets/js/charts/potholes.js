@@ -3,6 +3,7 @@
 // Chart.js and Leaflet (+ markercluster) are loaded as globals in the page.
 
 import { getPotholesSummary, getPotholesPoints } from "../api.js";
+import { applyChartTheme, tokens, series, ordinal, axes } from "./theme.js";
 
 const fmtNumber = new Intl.NumberFormat("en-GB");
 const fmtPct = (n) => `${Math.round(n * 100)}%`;
@@ -16,16 +17,7 @@ const MONTHS = ["January","February","March","April","May","June","July","August
 const monthLong = (ym) => { const [y, m] = ym.split("-"); return `${MONTHS[+m - 1]} ${y}`; };
 const monthShort = (ym) => { const [y, m] = ym.split("-"); return `${MONTHS[+m - 1].slice(0, 3)} ${y.slice(2)}`; };
 
-const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-const palette = () => ({
-  accent: css("--color-accent"),
-  warn: css("--color-warn"),
-  blue: css("--chart-3"),
-  text: css("--color-text"),
-  muted: css("--color-text-muted"),
-  grid: css("--color-border"),
-});
-
+applyChartTheme();
 bootstrap();
 
 async function bootstrap() {
@@ -73,7 +65,12 @@ function renderStats(s) {
 // Map -----------------------------------------------------------------------
 
 function renderMap(points) {
-  const p = palette();
+  // Repaired potholes are resolved — muted neutral. Awaiting = orange carries
+  // the attention. Neutral-vs-hue separates under every CVD type; the legend
+  // and popups carry the meaning too.
+  const t = tokens();
+  const orange = series(6)[5];
+  const done = t.seriesOther;
   const dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
   const map = L.map("map", { scrollWheelZoom: false }).setView([53.8, -1.55], 11);
 
@@ -97,8 +94,8 @@ function renderMap(points) {
     const marker = L.circleMarker([lat, lon], {
       radius: 4,
       weight: 0,
-      fillColor: open ? p.warn : p.accent,
-      fillOpacity: 0.75,
+      fillColor: open ? orange : done,
+      fillOpacity: open ? 0.9 : 0.55,
     });
     marker.bindPopup(
       open
@@ -119,14 +116,14 @@ function renderMap(points) {
 // Trend ---------------------------------------------------------------------
 
 function renderTrend(trend) {
-  const p = palette();
+  const [blue, green] = series(2);
   new Chart(document.getElementById("trend-chart"), {
     type: "line",
     data: {
       labels: trend.map((t) => monthShort(t.month)),
       datasets: [
-        { label: "Reported", data: trend.map((t) => t.recorded), borderColor: p.blue, backgroundColor: p.blue, tension: 0.3, pointRadius: 2 },
-        { label: "Repaired", data: trend.map((t) => t.fixed), borderColor: p.accent, backgroundColor: p.accent, tension: 0.3, pointRadius: 2 },
+        { label: "Reported", data: trend.map((t) => t.recorded), borderColor: blue, pointBackgroundColor: blue, tension: 0.3, pointRadius: 0, pointHitRadius: 12 },
+        { label: "Repaired", data: trend.map((t) => t.fixed), borderColor: green, pointBackgroundColor: green, tension: 0.3, pointRadius: 0, pointHitRadius: 12 },
       ],
     },
     options: {
@@ -134,13 +131,9 @@ function renderTrend(trend) {
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
       plugins: {
-        legend: { labels: { color: p.text, usePointStyle: true, boxWidth: 8 } },
         tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${fmtNumber.format(c.parsed.y)}` } },
       },
-      scales: {
-        x: { ticks: { color: p.muted, maxRotation: 0, autoSkip: true }, grid: { display: false } },
-        y: { beginAtZero: true, ticks: { color: p.muted }, grid: { color: p.grid } },
-      },
+      scales: { x: axes.x(), y: axes.y() },
     },
   });
 }
@@ -148,12 +141,12 @@ function renderTrend(trend) {
 // Wards ---------------------------------------------------------------------
 
 function renderWards(wards) {
-  const p = palette();
+  const t = tokens();
   new Chart(document.getElementById("ward-chart"), {
     type: "bar",
     data: {
       labels: wards.map((w) => w.name),
-      datasets: [{ label: "Potholes recorded", data: wards.map((w) => w.count), backgroundColor: p.accent, borderRadius: 4 }],
+      datasets: [{ data: wards.map((w) => w.count), backgroundColor: series(1)[0], maxBarThickness: 16 }],
     },
     options: {
       indexAxis: "y",
@@ -172,24 +165,24 @@ function renderWards(wards) {
         },
       },
       scales: {
-        x: { beginAtZero: true, ticks: { color: p.muted }, grid: { color: p.grid } },
-        y: { ticks: { color: p.text, autoSkip: false }, grid: { display: false } },
+        x: axes.y({ position: "bottom" }),
+        y: axes.x({ ticks: { color: t.inkSecondary, autoSkip: false, font: { size: 11 } } }),
       },
     },
   });
 }
 
-// Repair-time buckets -------------------------------------------------------
+// Repair-time buckets — ordered durations, so one hue stepped light→dark.
 
 function renderBuckets(s) {
-  const p = palette();
   const buckets = s.fixTimeBuckets;
+  const ramp = ordinal("blue", buckets.length);
   const total = buckets.reduce((sum, b) => sum + b.count, 0) || 1;
   new Chart(document.getElementById("bucket-chart"), {
     type: "bar",
     data: {
       labels: buckets.map((b) => b.label),
-      datasets: [{ label: "Potholes", data: buckets.map((b) => b.count), backgroundColor: p.accent, borderRadius: 4 }],
+      datasets: [{ data: buckets.map((b) => b.count), backgroundColor: ramp }],
     },
     options: {
       responsive: true,
@@ -203,8 +196,8 @@ function renderBuckets(s) {
         },
       },
       scales: {
-        x: { ticks: { color: p.text }, grid: { display: false } },
-        y: { beginAtZero: true, ticks: { color: p.muted }, grid: { color: p.grid } },
+        x: axes.x({ ticks: { color: tokens().inkSecondary } }),
+        y: axes.y(),
       },
     },
   });

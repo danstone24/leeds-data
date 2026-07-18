@@ -9,6 +9,7 @@ import {
   getSpendingTrend,
   getSpendingTransactions,
 } from "../api.js";
+import { applyChartTheme, tokens, series, wash, axes } from "./theme.js";
 
 const fmtCurrency = new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", maximumFractionDigits: 0 });
 const fmtCurrencyM = (n) => {
@@ -20,14 +21,6 @@ const fmtCurrencyM = (n) => {
 const fmtNumber = new Intl.NumberFormat("en-GB");
 const fmtPct = (n) => `${(n * 100).toFixed(1)}%`;
 
-const palette = () => {
-  const css = getComputedStyle(document.documentElement);
-  return [1, 2, 3, 4, 5, 6].map((i) => css.getPropertyValue(`--chart-${i}`).trim());
-};
-const textColor = () => getComputedStyle(document.documentElement).getPropertyValue("--color-text").trim();
-const mutedColor = () => getComputedStyle(document.documentElement).getPropertyValue("--color-text-muted").trim();
-const gridColor = () => getComputedStyle(document.documentElement).getPropertyValue("--color-border").trim();
-
 // Module state -------------------------------------------------------------
 
 let deptChart = null;
@@ -38,6 +31,7 @@ let periodCatalogue = null; // full /api/spending/periods response, used to expa
 
 // Bootstrap ----------------------------------------------------------------
 
+applyChartTheme();
 bootstrap();
 
 async function bootstrap() {
@@ -193,28 +187,83 @@ function renderDepartments(s) {
   showDeptOverview(s);
 }
 
+// Seven named slices at most — the categorical palette is fixed-order and
+// never cycled, so the tail folds into a neutral "Everything else" slice.
+// "Other / unspecified" (a real drillable bucket in the data) keeps its own
+// neutral tone and stays clickable; the fold slice is display-only.
+const OTHERISH = /^other\b|unspecified/i;
+
+function foldSlices(labels, values) {
+  const t = tokens();
+  const slots = series(7);
+  const items = labels.map((label, i) => ({ label, value: values[i], i }));
+  const kept = [];
+  const folded = [];
+  let hueCount = 0;
+  for (const item of items) {
+    if (OTHERISH.test(item.label)) {
+      kept.push({ ...item, colour: t.seriesOther });
+    } else if (hueCount < 7) {
+      kept.push({ ...item, colour: slots[hueCount++] });
+    } else {
+      folded.push(item);
+    }
+  }
+  if (folded.length === 1) kept.push({ ...folded.pop(), colour: t.seriesOther });
+  const out = {
+    labels: kept.map((x) => x.label),
+    values: kept.map((x) => x.value),
+    colours: kept.map((x) => x.colour),
+    map: kept.map((x) => x.i), // fold slice maps to -1 (not drillable)
+  };
+  if (folded.length) {
+    out.labels.push(`Everything else (${folded.length})`);
+    out.values.push(folded.reduce((sum, f) => sum + f.value, 0));
+    out.colours.push(t.rule); // softer neutral than "Other / unspecified"
+    out.map.push(-1);
+  }
+  return out;
+}
+
 function renderDonut({ labels, values }, onClick) {
+  const t = tokens();
+  const folded = foldSlices(labels, values);
   deptChart?.destroy();
   deptChart = new Chart(document.getElementById("dept-chart"), {
     type: "doughnut",
     data: {
-      labels,
+      labels: folded.labels,
       datasets: [{
-        data: values,
-        backgroundColor: cycle(palette(), labels.length),
-        borderColor: getComputedStyle(document.documentElement).getPropertyValue("--color-bg-elevated").trim(),
+        data: folded.values,
+        backgroundColor: folded.colours,
+        borderColor: t.surface, // surface gap between segments
         borderWidth: 2,
       }],
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      cutout: "55%",
+      cutout: "62%",
       plugins: {
-        legend: { position: "right", labels: { color: textColor() } },
-        tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${fmtCurrency.format(ctx.parsed)}` } },
+        legend: {
+          position: window.innerWidth >= 720 ? "right" : "bottom",
+          align: "center",
+        },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => `${ctx.label}: ${fmtCurrency.format(ctx.parsed)}`,
+            afterLabel: (ctx) =>
+              folded.map[ctx.dataIndex] === -1 ? "Grouped small entries — no drill-down" : "",
+          },
+        },
       },
-      onClick: onClick ? (_evt, els) => { if (els.length) onClick(els[0].index); } : undefined,
+      onClick: onClick
+        ? (_evt, els) => {
+            if (!els.length) return;
+            const orig = folded.map[els[0].index];
+            if (orig >= 0) onClick(orig);
+          }
+        : undefined,
     },
   });
 }
@@ -233,7 +282,7 @@ function setBack(label, handler) {
 
 function showDeptOverview(s) {
   closeTransactions();
-  document.getElementById("dept-chart-title").textContent = "By department";
+  document.getElementById("dept-chart-title").textContent = "Where the money went";
   document.getElementById("dept-chart-caption").textContent =
     "Click a slice to see the divisions inside that department.";
   setBack(null);
@@ -375,14 +424,14 @@ function renderSuppliers(s) {
     type: "bar",
     data: {
       labels,
-      datasets: [{ data, backgroundColor: palette()[0], borderRadius: 4 }],
+      datasets: [{ data, backgroundColor: series(1)[0], maxBarThickness: 18 }],
     },
     options: {
       indexAxis: "y",
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { display: false },
+        legend: { display: false }, // single series: the title names it
         tooltip: {
           callbacks: {
             label: (ctx) => `${fmtCurrency.format(ctx.parsed.x)} (${s.topSuppliers[ctx.dataIndex].count} payments)`,
@@ -390,14 +439,16 @@ function renderSuppliers(s) {
         },
       },
       scales: {
-        x: { ticks: { color: mutedColor(), callback: (v) => fmtCurrencyM(v) }, grid: { color: gridColor() } },
-        y: { ticks: { color: textColor() }, grid: { display: false } },
+        x: axes.y({ position: "bottom", ticks: { color: tokens().inkMuted, callback: (v) => fmtCurrencyM(v) } }),
+        y: axes.x({ ticks: { color: tokens().inkSecondary, autoSkip: false, font: { size: 11 } } }),
       },
     },
   });
 }
 
 function renderTrend(months) {
+  const t = tokens();
+  const blue = series(1)[0];
   const labels = months.map((m) => formatMonthLabelShort(m.month));
   const data = months.map((m) => m.total);
   trendChart?.destroy();
@@ -407,12 +458,11 @@ function renderTrend(months) {
       labels,
       datasets: [{
         data,
-        borderColor: palette()[0],
-        backgroundColor: palette()[0] + "22",
+        borderColor: blue,
+        backgroundColor: wash(blue),
+        pointBackgroundColor: blue,
         fill: true,
         tension: 0.3,
-        pointRadius: 3,
-        pointHoverRadius: 5,
       }],
     },
     options: {
@@ -423,8 +473,8 @@ function renderTrend(months) {
         tooltip: { callbacks: { label: (ctx) => fmtCurrency.format(ctx.parsed.y) } },
       },
       scales: {
-        x: { ticks: { color: mutedColor() }, grid: { display: false } },
-        y: { ticks: { color: mutedColor(), callback: (v) => fmtCurrencyM(v) }, grid: { color: gridColor() } },
+        x: axes.x(),
+        y: axes.y({ ticks: { color: t.inkMuted, padding: 8, callback: (v) => fmtCurrencyM(v) } }),
       },
     },
   });
@@ -435,14 +485,15 @@ function renderCapRev(s) {
   const total = capital + revenue;
   const capPct = total ? capital / total : 0;
   const revPct = total ? revenue / total : 0;
+  // Two parts of one whole: two steps of the same hue, values printed beside.
   document.getElementById("cap-rev").innerHTML = `
     <div class="cap-rev-bar" aria-hidden="true">
-      <span style="width: ${(revPct * 100).toFixed(1)}%; background: var(--chart-1);"></span>
-      <span style="width: ${(capPct * 100).toFixed(1)}%; background: var(--chart-2);"></span>
+      <span style="width: ${(revPct * 100).toFixed(1)}%; background: var(--ord-blue-4);"></span>
+      <span style="width: ${(capPct * 100).toFixed(1)}%; background: var(--ord-blue-1);"></span>
     </div>
     <div class="cap-rev-legend">
-      <div><span class="dot" style="background: var(--chart-1)"></span> Revenue <strong>${fmtCurrency.format(revenue)}</strong> <span class="muted">(${fmtPct(revPct)})</span></div>
-      <div><span class="dot" style="background: var(--chart-2)"></span> Capital <strong>${fmtCurrency.format(capital)}</strong> <span class="muted">(${fmtPct(capPct)})</span></div>
+      <div><span class="dot" style="background: var(--ord-blue-4)"></span> Revenue <strong>${fmtCurrency.format(revenue)}</strong> <span class="muted">(${fmtPct(revPct)})</span></div>
+      <div><span class="dot" style="background: var(--ord-blue-1)"></span> Capital <strong>${fmtCurrency.format(capital)}</strong> <span class="muted">(${fmtPct(capPct)})</span></div>
     </div>
   `;
 }
@@ -469,12 +520,6 @@ function renderSource(s) {
 }
 
 // Helpers ------------------------------------------------------------------
-
-function cycle(arr, n) {
-  const out = [];
-  for (let i = 0; i < n; i++) out.push(arr[i % arr.length]);
-  return out;
-}
 
 function formatMonthLabelShort(m) {
   const [y, mo] = m.split("-");

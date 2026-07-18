@@ -8,17 +8,15 @@
       name="description"
       content="Where Leeds City Council's money goes. Spending by department, supplier and month, drawn from Datamillnorth."
     />
-    <meta name="theme-color" content="#006a4e" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%23006a4e'/%3E%3Ctext x='50' y='68' font-family='system-ui,sans-serif' font-weight='700' font-size='60' fill='white' text-anchor='middle'%3EL%3C/text%3E%3C/svg%3E" />
+    <meta name="theme-color" content="#f9f6ef" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1b1a17" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f9f6ef'/%3E%3Crect y='88' width='100' height='6' fill='%231c1b18'/%3E%3Ctext x='50' y='72' font-family='Georgia,serif' font-weight='700' font-size='72' fill='%231c1b18' text-anchor='middle'%3EL%3C/text%3E%3C/svg%3E" />
     <link rel="stylesheet" href="/assets/css/style.css" />
   </head>
   <body>
     <header class="site-header">
       <div class="container header-inner">
-        <a href="/" class="brand">
-          <span class="brand-mark" aria-hidden="true">L</span>
-          <span class="brand-name">Leeds Data</span>
-        </a>
+        <a href="/" class="brand">Leeds Data<span class="brand-mark">.</span></a>
         <nav class="site-nav" aria-label="Primary">
           <a href="/about.html">About</a>
           <a href="https://datamillnorth.org" rel="noopener">Datamillnorth</a>
@@ -26,10 +24,21 @@
       </div>
     </header>
 
+    <nav class="section-nav" aria-label="Topics">
+      <div class="container section-nav-inner">
+        <a href="/pages/spending.html" aria-current="page">Spending</a>
+        <a href="/pages/potholes.html">Potholes</a>
+        <a href="/pages/collisions.html">Road safety</a>
+        <a href="/pages/getting-around.html">Getting around</a>
+        <a href="/pages/footfall.html">Footfall</a>
+        <a href="/about.html">About</a>
+      </div>
+    </nav>
+
     <main>
       <section class="topic-hero">
         <div class="container">
-          <p class="hero-eyebrow">Council spending</p>
+          <p class="hero-kicker">Council spending</p>
           <h1 class="hero-title">Where the money goes</h1>
           <p class="hero-lede" id="summary-line">
             Loading the latest figures from Leeds City Council&hellip;
@@ -61,81 +70,106 @@
         </div>
       </section>
 
-      <section class="container chart-section">
-        <div class="chart-header">
-          <h2 id="dept-chart-title">By department</h2>
-          <button class="btn-link" id="dept-back" hidden>← Back to all departments</button>
-        </div>
-        <p class="chart-caption" id="dept-chart-caption">
-          Click a slice to see the divisions inside that department.
-        </p>
-        <div class="chart-canvas-wrap">
-          <canvas id="dept-chart" aria-label="Spending by department"></canvas>
-        </div>
+      <div class="container">
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2 id="dept-chart-title">Where the money went</h2>
+            <p class="chart-caption" id="dept-chart-caption">
+              Click a slice to see the divisions inside that department.
+            </p>
+            <button class="btn-link" id="dept-back" hidden>← Back to all departments</button>
+          </figcaption>
+          <div class="figure-body">
+            <div class="chart-canvas-wrap">
+              <canvas id="dept-chart" aria-label="Spending by department"></canvas>
+            </div>
 
-        <div class="txn-panel" id="txn-panel" hidden>
-          <div class="txn-header">
-            <h3 id="txn-title">Transactions</h3>
-            <button class="btn-link" id="txn-close">Close ×</button>
+            <div class="txn-panel" id="txn-panel" hidden>
+              <div class="txn-header">
+                <h3 id="txn-title">Transactions</h3>
+                <button class="btn-link" id="txn-close">Close ×</button>
+              </div>
+              <p class="chart-caption" id="txn-caption"></p>
+              <div class="table-wrap">
+                <table class="data-table" id="txn-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Supplier</th>
+                      <th class="num">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
           </div>
-          <p class="chart-caption" id="txn-caption"></p>
-          <div class="table-wrap">
-            <table class="data-table" id="txn-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Supplier</th>
-                  <th class="num">Amount</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
+        </figure>
+
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>Top suppliers this month</h2>
+            <p class="chart-caption">The 20 largest payees by total amount paid.</p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="chart-canvas-wrap chart-tall">
+              <canvas id="suppliers-chart" aria-label="Top suppliers"></canvas>
+            </div>
           </div>
-        </div>
-      </section>
+        </figure>
 
-      <section class="container chart-section">
-        <h2>Top suppliers this month</h2>
-        <p class="chart-caption">The 20 largest payees by total amount paid.</p>
-        <div class="chart-canvas-wrap chart-tall">
-          <canvas id="suppliers-chart" aria-label="Top suppliers"></canvas>
-        </div>
-      </section>
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>Monthly trend</h2>
+            <p class="chart-caption">Total spend per month, last 24 months.</p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="chart-canvas-wrap">
+              <canvas id="trend-chart" aria-label="Monthly spending trend"></canvas>
+            </div>
+          </div>
+        </figure>
 
-      <section class="container chart-section">
-        <h2>Monthly trend</h2>
-        <p class="chart-caption">Total spend per month, last 24 months.</p>
-        <div class="chart-canvas-wrap">
-          <canvas id="trend-chart" aria-label="Monthly spending trend"></canvas>
-        </div>
-      </section>
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>Capital vs revenue</h2>
+            <p class="chart-caption">
+              Capital spend is one-off investment (buildings, equipment). Revenue is the day-to-day cost of running services.
+            </p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="cap-rev" id="cap-rev"></div>
+          </div>
+        </figure>
 
-      <section class="container chart-section">
-        <h2>Capital vs revenue</h2>
-        <p class="chart-caption">
-          Capital spend is one-off investment (buildings, equipment). Revenue is the day-to-day cost of running services.
-        </p>
-        <div class="cap-rev" id="cap-rev"></div>
-      </section>
-
-      <section class="container chart-section">
-        <h2>10 largest single payments</h2>
-        <p class="chart-caption">The biggest individual transactions this month.</p>
-        <div class="table-wrap">
-          <table class="data-table" id="largest-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Department</th>
-                <th>Beneficiary</th>
-                <th>Purpose</th>
-                <th class="num">Amount</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </section>
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>10 largest single payments</h2>
+            <p class="chart-caption">The biggest individual transactions this month.</p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="table-wrap">
+              <table class="data-table" id="largest-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Department</th>
+                    <th>Beneficiary</th>
+                    <th>Purpose</th>
+                    <th class="num">Amount</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </figure>
+      </div>
 
       <section class="container source-block">
         <p>
