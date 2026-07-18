@@ -16,7 +16,14 @@ import { buildCollisions, isRealCollisionRow } from "../src/collisions.js";
 import { accumulateCountRow, finaliseCounts, parseSites } from "../src/counts.js";
 import { accumulateFootRow, finaliseFootfall } from "../src/footfall.js";
 import { buildCouncilTax } from "../src/counciltax.js";
-import { parseCsvObjects } from "../src/csv.js";
+import {
+  accumulateBidRow,
+  parseStockRecords,
+  accumulateTenantedRow,
+  newTenantedAcc,
+  finaliseHousing,
+} from "../src/housing.js";
+import { parseCsvObjects, parseCsvStream } from "../src/csv.js";
 
 // Bump this when buildMonthlySummary's logic or output shape changes — it
 // invalidates every stored hash so the next run re-aggregates everything.
@@ -41,6 +48,9 @@ const FOOTFALL_DATASET_ID = "2rlld";
 // And council tax (one small precepts file).
 const COUNCILTAX_VERSION = "v1";
 const COUNCILTAX_DATASET_ID = "24zz5";
+// And council housing (three datasets on one page).
+const HOUSING_VERSION = "v1";
+const HOUSING_DATASETS = { bids: "20jjj", stock: "2o1gn", tenanted: "ep6qr" };
 
 const {
   CLOUDFLARE_API_TOKEN,
@@ -569,6 +579,84 @@ async function refreshCouncilTax() {
   console.log("  wrote counciltax:summary, counciltax:hash");
 }
 
+// Council housing: bids (many quarterly/annual files), stock by ward (one
+// cumulative file, latest wins), and the latest tenanted-stock snapshot.
+async function refreshHousing() {
+  console.log(`Housing: aggregating (version ${HOUSING_VERSION})…`);
+
+  const [bidsDs, stockDs, tenDs] = await Promise.all([
+    getDataset(env, HOUSING_DATASETS.bids),
+    getDataset(env, HOUSING_DATASETS.stock),
+    getDataset(env, HOUSING_DATASETS.tenanted),
+  ]);
+
+  // Bids: every data file (the two lookup-table "guidance" docs are not data).
+  const bidFiles = listCsvResources(bidsDs).filter((r) => !/guidance/i.test(r.title));
+
+  // Stock: cumulative re-publishes — the file with the biggest year wins.
+  const maxYear = (r) => Math.max(0, ...(r.title.match(/\d{4}/g) || []).map(Number));
+  const stockFile = listCsvResources(stockDs).sort((a, b) => maxYear(b) - maxYear(a))[0];
+
+  // Tenanted: snapshots titled "31/03/2026.csv" — latest date wins.
+  const snapDate = (r) => {
+    const m = r.title.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : "";
+  };
+  const tenFile = listCsvResources(tenDs).sort((a, b) => snapDate(b).localeCompare(snapDate(a)))[0];
+
+  if (!bidFiles.length || !stockFile || !tenFile) {
+    console.warn("  missing source files — skipping housing");
+    return;
+  }
+
+  const fingerprint =
+    `${HOUSING_VERSION}:` +
+    [...bidFiles, stockFile, tenFile].map((r) => r.hash || `${r.id}:${r.size}`).sort().join(",");
+  const lastFingerprint = await kvGet("housing:hash");
+  if (FORCE !== "1" && lastFingerprint === fingerprint) {
+    console.log("  ✓ unchanged, skipping");
+    return;
+  }
+
+  const bidsAcc = new Map();
+  let ok = 0;
+  for (const r of bidFiles) {
+    try {
+      const stream = await streamCsv(env, r.url);
+      for await (const row of parseCsvObjects(stream)) accumulateBidRow(bidsAcc, row);
+      ok++;
+    } catch (err) {
+      console.warn(`  failed on bids "${r.title}": ${err.message}`);
+    }
+  }
+  console.log(`  bids: ${ok}/${bidFiles.length} files`);
+
+  const stockRecords = [];
+  for await (const rec of parseCsvStream(await streamCsv(env, stockFile.url))) stockRecords.push(rec);
+  const stockYearly = parseStockRecords(stockRecords);
+  console.log(`  stock: "${stockFile.title}" → ${stockYearly.length} years`);
+
+  const tenAcc = newTenantedAcc();
+  for await (const row of parseCsvObjects(await streamCsv(env, tenFile.url))) {
+    accumulateTenantedRow(tenAcc, row);
+  }
+  console.log(`  tenanted: "${tenFile.title}" → ${tenAcc.total.toLocaleString()} properties`);
+
+  const summary = finaliseHousing(bidsAcc, stockYearly, tenAcc, { snapshotDate: snapDate(tenFile) });
+  const latestFull = summary.bids.yearly.filter((y) => y.monthsCovered === 12).pop();
+  console.log(
+    `  ${summary.bids.yearly.length} bid years · ${latestFull?.year}: ${latestFull?.lets} lets, ` +
+    `mean ${latestFull?.meanEoi} bids · stock ${summary.stock.latest?.total?.toLocaleString()} ` +
+    `(${(summary.stock.change * 100).toFixed(1)}% since ${summary.stock.first?.fy})`
+  );
+
+  await kvBulkPut([
+    { key: "housing:summary", value: JSON.stringify(summary) },
+    { key: "housing:hash", value: fingerprint },
+  ]);
+  console.log("  wrote housing:summary, housing:hash");
+}
+
 function monthLabel(m) {
   const [y, mo] = m.split("-");
   const names = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -589,6 +677,7 @@ async function main() {
     ["traffic", () => refreshCounts("traffic")],
     ["footfall", () => refreshFootfall()],
     ["counciltax", () => refreshCouncilTax()],
+    ["housing", () => refreshHousing()],
   ];
 
   let failed = false;

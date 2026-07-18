@@ -52,3 +52,7 @@ export function getFootfallSummary() {
 export function getCouncilTaxSummary() {
   return getJson("/api/counciltax/summary");
 }
+
+export function getHousingSummary() {
+  return getJson("/api/housing/summary");
+}

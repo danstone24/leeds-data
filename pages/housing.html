@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Council housing — Leeds Data</title>
+    <meta
+      name="description"
+      content="How hard is it to get a council house in Leeds? Hundreds of households bid for every advertised home, while the stock keeps shrinking."
+    />
+    <meta name="theme-color" content="#f9f6ef" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1b1a17" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f9f6ef'/%3E%3Crect y='88' width='100' height='6' fill='%231c1b18'/%3E%3Ctext x='50' y='72' font-family='Georgia,serif' font-weight='700' font-size='72' fill='%231c1b18' text-anchor='middle'%3EL%3C/text%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="/assets/css/style.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a href="/" class="brand">Leeds Data<span class="brand-mark">.</span></a>
+        <nav class="site-nav" aria-label="Primary">
+          <a href="/about.html">About</a>
+          <a href="https://datamillnorth.org" rel="noopener">Datamillnorth</a>
+        </nav>
+      </div>
+    </header>
+
+    <nav class="section-nav" aria-label="Topics">
+      <div class="container section-nav-inner">
+        <a href="/pages/spending.html">Spending</a>
+        <a href="/pages/council-tax.html">Council tax</a>
+        <a href="/pages/housing.html" aria-current="page">Housing</a>
+        <a href="/pages/schools.html">Schools</a>
+        <a href="/pages/potholes.html">Potholes</a>
+        <a href="/pages/collisions.html">Road safety</a>
+        <a href="/pages/getting-around.html">Getting around</a>
+        <a href="/pages/footfall.html">Footfall</a>
+        <a href="/about.html">About</a>
+      </div>
+    </nav>
+
+    <main>
+      <section class="topic-hero">
+        <div class="container">
+          <p class="hero-kicker">Council housing</p>
+          <h1 class="hero-title">How hard is it to get a council house?</h1>
+          <p class="hero-lede" id="summary-line">
+            Loading council housing figures from Leeds City Council&hellip;
+          </p>
+        </div>
+      </section>
+
+      <section class="container stat-grid" aria-label="Headline figures">
+        <div class="stat">
+          <span class="stat-label">Bids per home <span id="breakdown-year">last year</span></span>
+          <span class="stat-value" id="stat-bids">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Homes advertised <span id="breakdown-year-2">last year</span></span>
+          <span class="stat-value" id="stat-lets">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Council homes <span id="stock-year">now</span></span>
+          <span class="stat-value" id="stat-stock">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Stock since <span id="stock-first-year">2006</span></span>
+          <span class="stat-value" id="stat-stock-change">—</span>
+        </div>
+      </section>
+
+      <div class="container">
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>The queue for every front door</h2>
+            <p class="chart-caption" id="bids-trend-caption">
+              The average number of households bidding on each advertised
+              council home. Anyone on the housing register can bid on homes
+              through Leeds Homes; this is the clearest single measure of how
+              far demand outstrips supply.
+            </p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="chart-canvas-wrap">
+              <canvas id="bids-trend-chart" aria-label="Average bids per advertised council home per year"></canvas>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>Fewer homes come up at all</h2>
+            <p class="chart-caption">
+              How many council homes were advertised for letting each year.
+              Fewer vacancies means fewer chances to bid — the other half of
+              why the queues above keep growing.
+            </p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="chart-canvas-wrap">
+              <canvas id="lets-chart" aria-label="Council homes advertised for letting per year"></canvas>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>A shrinking stock</h2>
+            <p class="chart-caption">
+              The council's total housing stock at the end of each financial
+              year. Right-to-buy sales and demolitions have removed more homes
+              than new building has added in every year on record here.
+            </p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="chart-canvas-wrap">
+              <canvas id="stock-chart" aria-label="Total council housing stock per year"></canvas>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>Where the competition is fiercest</h2>
+            <p class="chart-caption" id="ward-caption">
+              Average bids per advertised home by ward. Inner-city wards see
+              the longest queues; the outer suburbs the shortest — but nowhere
+              in Leeds is a council home easy to get.
+            </p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="chart-canvas-wrap chart-tall">
+              <canvas id="ward-chart" aria-label="Average bids per home by ward"></canvas>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>Family homes are the scarcest</h2>
+            <p class="chart-caption" id="beds-caption">
+              Average bids by property size. Three-bed family homes rarely
+              come up — when they do, the queue is the longest of all.
+            </p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="chart-canvas-wrap">
+              <canvas id="beds-chart" aria-label="Average bids per home by number of bedrooms"></canvas>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>What the council actually owns</h2>
+            <p class="chart-caption" id="mix-caption">
+              The tenanted stock by property type. Just over half is houses;
+              flats — including the city's high-rise blocks — make up most of
+              the rest.
+            </p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="chart-canvas-wrap">
+              <canvas id="mix-chart" aria-label="Council housing stock by property type"></canvas>
+            </div>
+          </div>
+        </figure>
+      </div>
+
+      <section class="container source-block">
+        <p>
+          <strong>Sources:</strong>
+          <a href="https://datamillnorth.org/dataset/council-house-bids-20jjj" rel="noopener">Council house bids</a>,
+          <a href="https://datamillnorth.org/dataset/number-of-council-houses-2o1gn" rel="noopener">Number of council houses</a> and
+          <a href="https://datamillnorth.org/dataset/tenanted-housing-stock-ep6qr" rel="noopener">Tenanted housing stock</a>
+          on Datamillnorth, published by Leeds City Council.
+          Last updated <span id="source-updated">—</span>.
+        </p>
+        <p class="muted">
+          "Bids" are expressions of interest through the Leeds Homes lettings
+          system — one household can bid on many homes, so bids measure
+          competition, not the number of people waiting. Ward boundaries
+          changed in 2018 and older files use the old wards, so the by-ward
+          chart covers recent years only; the citywide trend uses everything.
+          The stock trend counts all council dwellings; sheltered and
+          extra-care homes are included throughout.
+        </p>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <p>
+          Data from
+          <a href="https://datamillnorth.org" rel="noopener">Datamillnorth.org</a>,
+          licensed under the
+          <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/" rel="noopener">Open Government Licence</a>.
+        </p>
+        <p>
+          Built by Dan Stone. Source on
+          <a href="https://github.com/danstone24/leeds-data" rel="noopener">GitHub</a>.
+        </p>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script type="module" src="/assets/js/charts/housing.js" defer></script>
+  </body>
+</html>
