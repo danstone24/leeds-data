@@ -183,7 +183,7 @@ See [docs/data-sources.md](docs/data-sources.md) for the curated list of dataset
 
 ## Current status
 
-**Last updated**: 2026-07-14
+**Last updated**: 2026-07-18
 
 - [x] Stack chosen, repo scaffolded
 - [x] GitHub repo created at https://github.com/danstone24/leeds-data
@@ -202,7 +202,11 @@ See [docs/data-sources.md](docs/data-sources.md) for the curated list of dataset
 - [x] About / methodology page — live at /about.html: why the site exists, where data comes from, how numbers are handled (two principles), a plain-English methodology note per dataset, how it's built, contact.
 - [x] Full UI overhaul (July 2026): broadsheet design system — self-hosted Newsreader + IBM Plex Sans, paper/ink tokens with hairline rules, double-rule masthead + topic section-nav, numbered figures with a marginalia caption rail, validated chart palette applied through `assets/js/charts/theme.js` (fixed-order categorical slots, ordinal ramps for severity/duration, status red for KSI, donut tail folded past 7 hues), themed Leaflet popups/clusters, dark mode re-derived (not flipped), charts non-animated. Verified light+dark, desktop+375px, zero console errors, donut drill exercised.
 
-All six planned datasets + the About page are now built. Next candidates: recycling/waste, planning applications, air quality (still "Coming soon" cards on the homepage).
+- [x] Seventh dataset (Council tax, id `24zz5`) — live at pages/council-tax.html: band D stack by precepting authority 1993→now, annual % rise, latest charges by band. Precepts CSV has forward-filled year blocks, year-label typos, era-drifting authority names, and an on/off Adult Social Care precept row (kept in data, folded into the council share on the page). See `counciltax.js`.
+- [x] Eighth topic (Council housing — three datasets: bids `20jjj`, stock by ward `2o1gn`, tenanted stock `ep6qr`) — live at pages/housing.html: bids-per-home trend, homes advertised, shrinking-stock trend, by-ward + by-bedrooms competition, stock-mix donut. Bids span two ward eras (pre-2018 2-letter codes vs named post-2018 wards — NOT 1:1, so ward stats use the named era only); the stock CSV is two side-by-side year blocks parsed positionally and only its Grand Total row is trusted. See `housing.js`.
+- [x] Ninth topic (School places — four datasets: prefs `24l45`/`e619w`, allocations `e6qpz`/`23ym1`) — live at pages/schools.html: first-choice demand by phase, most-competitive council-run primaries, places offered vs filled, spare-places share. Header rows are detected by content (junk preamble lines, era-drifting column names); PAN/allocated only exist for community/VC schools (academies stopped reporting after 2019), so those charts are council-run primaries only and the page says so. See `schools.js`.
+
+Nine topics + the About page are now built. Next candidates: recycling/waste, planning applications, air quality (still "Coming soon" cards on the homepage) — note recycling/waste and planning applications have NO live Datamillnorth dataset (checked July 2026), so both need external sources scoped like air quality below.
 
 - **Air quality** is scoped but deliberately NOT built yet — see [docs/air-quality-plan.md](docs/air-quality-plan.md). Source is **DEFRA UK-AIR** (Leeds Centre, `site_id=LEED`), the site's first non-Datamillnorth source. Plan records the KPIs (NO₂/PM2.5/PM10 annual means vs UK legal limits + WHO guidelines), the file-format quirks, and the wiring. When built, update the "all data from Datamillnorth" wording above.
 

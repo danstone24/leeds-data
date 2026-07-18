@@ -43,9 +43,7 @@ function renderStats(s) {
   const top = [...s.primary.competition, ...s.secondary.competition].sort(
     (a, b) => b.ratio - a.ratio
   )[0];
-  document.getElementById("stat-competitive").textContent = top
-    ? `${top.ratio}× oversubscribed`
-    : "—";
+  document.getElementById("stat-competitive").textContent = top ? `${top.ratio}×` : "—";
 
   const latestAlloc = allocYears(s.primary).at(-1);
   document.getElementById("stat-spare").textContent = latestAlloc

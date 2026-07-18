@@ -143,6 +143,61 @@ Two datasets with an **identical schema**, so they share one aggregator (`counts
 - **Worker route**: `GET /api/footfall/summary`
 - **Chart**: [pages/footfall.html](../pages/footfall.html), [assets/js/charts/footfall.js](../assets/js/charts/footfall.js). Long-run trend, by-hour rhythm, by-weekday, busiest-streets bar.
 
+### Council tax
+
+- **Dataset**: [Council tax charges](https://datamillnorth.org/dataset/council-tax-charges-24zz5) (id `24zz5`)
+- **Resources**: one "Major Council Tax Precepts 1993-20XX" CSV (re-issued with a new end year annually) + per-year "charges by band"/parish files we ignore. We pick the precepts file with the biggest end year in its title.
+- **Coverage**: every financial year since 1993/94.
+- **Update cadence**: annual (each spring, when the new year's charges are set).
+- **Why we use it**: everyone pays it — 33 years of band A–H charges split by precepting authority (council / police / fire).
+- **Quirks** (handled in `counciltax.js`):
+  - The financial year is forward-filled — only the first row of each year's block carries it, and that row isn't always the council's (2021/22 starts with the fire authority).
+  - Year-label typos: `1993/64`, `1996/67`, `1999/20`. Trust the 4-digit start year, derive the end.
+  - Authority names drift across eras (`POLICE` → `West Yorkshire Police Authority` → `Police & Crime Commissioner West Yorks`) — classify by keyword.
+  - The **Adult Social Care precept** appears as its own row in some years from 2016/17 and is folded into the council's line in others — keep it separate in the data, fold it into the council share when charting.
+  - Amounts are `£1,234.56` strings in cp1252.
+- **KV layout**: `counciltax:summary`, `counciltax:hash`.
+- **Worker route**: `GET /api/counciltax/summary`
+- **Chart**: [pages/council-tax.html](../pages/council-tax.html), [assets/js/charts/council-tax.js](../assets/js/charts/council-tax.js). Band D stack by authority since 1993, annual % rise, latest charges by band.
+
+### Council housing (three datasets, one page)
+
+- **Datasets**:
+  - [Council house bids](https://datamillnorth.org/dataset/council-house-bids-20jjj) (id `20jjj`) — every advertised let + expressions of interest. Annual files 2014–2018, quarterly from Apr 2019. Two "guidance" lookup CSVs are excluded by title.
+  - [Number of council houses](https://datamillnorth.org/dataset/number-of-council-houses-2o1gn) (id `2o1gn`) — stock by ward, one cumulative CSV re-published yearly (biggest year in the title wins).
+  - [Tenanted housing stock](https://datamillnorth.org/dataset/tenanted-housing-stock-ep6qr) (id `ep6qr`) — quarterly per-property snapshots (~51k rows); we use the latest by the date in the title.
+- **Update cadence**: bids quarterly; stock annual; tenanted quarterly.
+- **Why we use them**: "how hard is it to get a council house?" — bids per home (demand) vs a shrinking stock (supply), plus what the stock actually is.
+- **Quirks** (handled in `housing.js`):
+  - **Two ward eras in bids**: 2014–2019 files carry 2-letter codes for the PRE-2018 wards; later files spell out post-2018 ward names (with drift: `Crossgates` vs `Cross Gates`). The two ward maps aren't 1:1, so ward stats use named rows only; the citywide trend uses everything.
+  - Bid dates come as `25/02/2026` and `30-JUN-2014`. Blank padding rows are skipped.
+  - Ward/bedroom breakdowns are computed from the latest **complete** calendar year (`monthsCovered === 12`) so seasonal quarters don't skew them; 2019 (Apr–Dec) and the in-progress year are partial.
+  - The stock CSV is **two year-blocks side by side** (2006/07–2017/18, then a repeated Ward column and 2018/19 on) — parsed positionally. Its ward list is the pre-2018 one even in recent columns, so only the `Grand Total` row is trusted; never join it to bids wards.
+  - Property type codes (`1BMSF`, `2BH`, typo `2BMFS`) → bedrooms by leading digit, 4+ folded.
+- **KV layout**: `housing:summary`, `housing:hash` (one fingerprint across all three datasets).
+- **Worker route**: `GET /api/housing/summary`
+- **Chart**: [pages/housing.html](../pages/housing.html), [assets/js/charts/housing.js](../assets/js/charts/housing.js). Bids-per-home trend, homes advertised, stock trend, by-ward and by-bedrooms competition, stock-mix donut.
+
+### School places (four datasets, one page)
+
+- **Datasets**:
+  - [Primary Preferences](https://datamillnorth.org/dataset/primary-preferences-24l45) (id `24l45`) — applications by preference rank per school, 2021+.
+  - [Primary school allocations](https://datamillnorth.org/dataset/primary-school-allocations-e6qpz) (id `e6qpz`) — PAN + places allocated, usable ~2021+.
+  - [Secondary School Preferences](https://datamillnorth.org/dataset/secondary-school-preferences-e619w) (id `e619w`) — 2019+.
+  - [Secondary school allocations](https://datamillnorth.org/dataset/secondary-school-allocations-23ym1) (id `23ym1`) — usable ~2019+.
+- **Update cadence**: annual (offer day each spring, for September entry).
+- **Why we use them**: "who gets the school they want?" — first-choice demand by phase, the most competitive schools, and the falling-rolls gap at primaries.
+- **The big caveat**: PAN and places-allocated are only published for **community and voluntary-controlled schools** — academies stopped reporting after 2019, and only ~5 secondaries still report (nearly all Leeds secondaries are academies). So competition/fill charts are council-run primaries only; preference counts cover every school. The page says this in plain English.
+- **Quirks** (handled in `schools.js`):
+  - 0–2 junk title lines before the real header — the header row is detected by content, never by position. Files whose schema isn't recognised (the pre-2019 era, e.g. `schoolprimarydistances.csv`) are skipped file-by-file with a log line.
+  - Header drift: `DfE Number` vs `Dfee`, `School Code` vs `SchoolCode`, `Applications as 1st preference` vs `1st Preferences`, trailing spaces everywhere.
+  - Secondary allocations publish `Total Allocated / Places Available` as one cell (`270/270`) in some years, a plain number in others. PAN ≠ places available in bulge years — we use the cell's second number as "available" when present.
+  - The primary preferences dataset's "Historical information" resource is excluded by title.
+  - Entry year comes from the resource title (`September 2026 entry`), not the file.
+- **KV layout**: `schools:summary`, `schools:hash` (one fingerprint across all four datasets).
+- **Worker route**: `GET /api/schools/summary`
+- **Chart**: [pages/schools.html](../pages/schools.html), [assets/js/charts/schools.js](../assets/js/charts/schools.js). Demand trend by phase, most-competitive council-run primaries, places offered vs filled, spare-places share.
+
 ## Template for new entries
 
 ### <topic name>
