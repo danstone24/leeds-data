@@ -101,19 +101,25 @@ export function parseAllocRecords(records) {
   return out.length ? out : null;
 }
 
+// PAN/allocated comparisons only make sense on a constant scope. Most years
+// only carry community/VC data anyway, but a few (primary 2020, secondary
+// 2019) include academies too — filter so the trend doesn't jump scope.
+const COUNCIL_RUN = /^(community|voluntary controlled)$/i;
+
 // phase input: { prefsByYear: Map<year, prefRows>, allocByYear: Map<year, allocRows> }
 function buildPhase(input) {
   const years = [...new Set([...input.prefsByYear.keys(), ...input.allocByYear.keys()])].sort();
   const yearly = years.map((year) => {
     const prefs = input.prefsByYear.get(year) || null;
-    const alloc = input.allocByYear.get(year) || null;
+    const allocAll = input.allocByYear.get(year) || null;
+    const alloc = allocAll ? allocAll.filter((r) => COUNCIL_RUN.test(r.type)) : null;
     const entry = { year };
     if (prefs) {
       entry.firstPrefs = prefs.reduce((s, r) => s + r.first, 0);
       entry.totalPrefs = prefs.reduce((s, r) => s + r.total, 0);
       entry.schools = prefs.length;
     }
-    if (alloc) {
+    if (alloc && alloc.length) {
       entry.allocSchools = alloc.length;
       entry.allocated = alloc.reduce((s, r) => s + r.allocated, 0);
       entry.available = alloc.reduce((s, r) => s + r.available, 0);
@@ -133,7 +139,7 @@ function buildPhase(input) {
     const prefsByCode = new Map(input.prefsByYear.get(joinYear).map((r) => [r.code, r]));
     competition = input.allocByYear
       .get(joinYear)
-      .filter((a) => prefsByCode.has(a.code) && a.available > 0)
+      .filter((a) => COUNCIL_RUN.test(a.type) && prefsByCode.has(a.code) && a.available > 0)
       .map((a) => ({
         name: a.name,
         type: a.type,

@@ -50,10 +50,10 @@ const FOOTFALL_DATASET_ID = "2rlld";
 const COUNCILTAX_VERSION = "v1";
 const COUNCILTAX_DATASET_ID = "24zz5";
 // And council housing (three datasets on one page).
-const HOUSING_VERSION = "v1";
+const HOUSING_VERSION = "v2";
 const HOUSING_DATASETS = { bids: "20jjj", stock: "2o1gn", tenanted: "ep6qr" };
 // And school places (four datasets, two phases).
-const SCHOOLS_VERSION = "v2";
+const SCHOOLS_VERSION = "v3";
 const SCHOOLS_DATASETS = {
   primaryPrefs: "24l45",
   primaryAlloc: "e6qpz",
@@ -644,12 +644,23 @@ async function refreshHousing() {
     return;
   }
 
+  // Some files (2019 Q3 on) drop the date column entirely — the fallback
+  // period comes from the title ("01/07/2019 - 30/09/2019").
+  const titlePeriod = (title) => {
+    const m = title.match(/^(\d{2})\/(\d{2})\/(\d{4})\s*-\s*(\d{2})\/(\d{2})\/(\d{4})/);
+    if (!m || m[3] !== m[6]) return null;
+    const months = [];
+    for (let mo = Number(m[2]); mo <= Number(m[5]); mo++) months.push(mo);
+    return { year: Number(m[3]), months };
+  };
+
   const bidsAcc = new Map();
   let ok = 0;
   for (const r of bidFiles) {
+    const fallback = titlePeriod(r.title);
     try {
       const stream = await streamCsvWithRetry(r.url);
-      for await (const row of parseCsvObjects(stream)) accumulateBidRow(bidsAcc, row);
+      for await (const row of parseCsvObjects(stream)) accumulateBidRow(bidsAcc, row, fallback);
       ok++;
     } catch (err) {
       console.warn(`  failed on bids "${r.title}": ${err.message}`);

@@ -26,15 +26,17 @@
 
 const MONTHS3 = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
 
-// "25/02/2026" or "30-JUN-2014" → { year, month }. Null if unparseable.
+// "25/02/2026", "30-JUN-2014" or "26-Jan-15" → { year, month }. Null if
+// unparseable (the 2015/16 files use two-digit years).
 export function parseBidDate(s) {
   const t = String(s || "").trim();
   let m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if (m) return { year: Number(m[3]), month: Number(m[2]) };
-  m = t.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{4})/);
+  m = t.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{2,4})/);
   if (m) {
     const mo = MONTHS3[m[2].toLowerCase()];
-    return mo ? { year: Number(m[3]), month: mo } : null;
+    const y = Number(m[3]);
+    return mo ? { year: y < 100 ? y + 2000 : y, month: mo } : null;
   }
   return null;
 }
@@ -52,19 +54,23 @@ function bedroomsFromType(code) {
 // Bids ---------------------------------------------------------------------
 
 // acc: Map year → { eois: number[], months: Set, byWard: Map, byBeds: Map }
-export function accumulateBidRow(acc, row) {
+// fallback: { year, months } from the file's title — some files (2019 Q3 on)
+// have no date column at all, so the title period is all we have.
+export function accumulateBidRow(acc, row, fallback = null) {
   const when = parseBidDate(row["Commencement Date"] ?? row["Commencement_Date"]);
-  if (!when) return;
   const eoi = Number(row["Number of Expressions of Interest"]);
   if (!Number.isFinite(eoi)) return;
+  if (!when && !fallback) return;
+  const year = when ? when.year : fallback.year;
 
-  let y = acc.get(when.year);
+  let y = acc.get(year);
   if (!y) {
     y = { eois: [], months: new Set(), byWard: new Map(), byBeds: new Map() };
-    acc.set(when.year, y);
+    acc.set(year, y);
   }
   y.eois.push(eoi);
-  y.months.add(when.month);
+  if (when) y.months.add(when.month);
+  else for (const m of fallback.months) y.months.add(m);
 
   // Ward-level only for the named-ward era — 2-letter codes are pre-2018
   // wards that don't map onto today's, so they stay citywide-only.
