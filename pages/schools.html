@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>School places — Leeds Data</title>
+    <meta
+      name="description"
+      content="Demand for school places in Leeds: first-choice applications for primary and secondary entry, the most competitive schools, and the growing gap of empty reception places."
+    />
+    <meta name="theme-color" content="#f9f6ef" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1b1a17" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f9f6ef'/%3E%3Crect y='88' width='100' height='6' fill='%231c1b18'/%3E%3Ctext x='50' y='72' font-family='Georgia,serif' font-weight='700' font-size='72' fill='%231c1b18' text-anchor='middle'%3EL%3C/text%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="/assets/css/style.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a href="/" class="brand">Leeds Data<span class="brand-mark">.</span></a>
+        <nav class="site-nav" aria-label="Primary">
+          <a href="/about.html">About</a>
+          <a href="https://datamillnorth.org" rel="noopener">Datamillnorth</a>
+        </nav>
+      </div>
+    </header>
+
+    <nav class="section-nav" aria-label="Topics">
+      <div class="container section-nav-inner">
+        <a href="/pages/spending.html">Spending</a>
+        <a href="/pages/council-tax.html">Council tax</a>
+        <a href="/pages/housing.html">Housing</a>
+        <a href="/pages/schools.html" aria-current="page">Schools</a>
+        <a href="/pages/potholes.html">Potholes</a>
+        <a href="/pages/collisions.html">Road safety</a>
+        <a href="/pages/getting-around.html">Getting around</a>
+        <a href="/pages/footfall.html">Footfall</a>
+        <a href="/about.html">About</a>
+      </div>
+    </nav>
+
+    <main>
+      <section class="topic-hero">
+        <div class="container">
+          <p class="hero-kicker">School places</p>
+          <h1 class="hero-title">Who gets the school they want?</h1>
+          <p class="hero-lede" id="summary-line">
+            Loading school admissions figures from Leeds City Council&hellip;
+          </p>
+        </div>
+      </section>
+
+      <section class="container stat-grid" aria-label="Headline figures">
+        <div class="stat">
+          <span class="stat-label">Primary first choices <span id="prim-year">latest</span></span>
+          <span class="stat-value" id="stat-primary">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Secondary first choices <span id="sec-year">latest</span></span>
+          <span class="stat-value" id="stat-secondary">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Most oversubscribed council-run school (first choices per place)</span>
+          <span class="stat-value" id="stat-competitive">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Council-run primaries with spare places</span>
+          <span class="stat-value" id="stat-spare">—</span>
+        </div>
+      </section>
+
+      <div class="container">
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>The bulge has moved to secondary</h2>
+            <p class="chart-caption">
+              First-choice applications for each September entry. Primary
+              applications track the birth rate five years earlier and are
+              falling; the larger cohorts born in the early 2010s are now
+              arriving at secondary school instead.
+            </p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="chart-canvas-wrap">
+              <canvas id="demand-chart" aria-label="First-choice applications per year, primary and secondary"></canvas>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>The hardest reception classes to get into</h2>
+            <p class="chart-caption" id="competition-caption">
+              First-choice applications for every reception place at
+              council-run primaries. Academies, free schools and most faith
+              schools set their own admissions and don't publish these
+              numbers, so they can't be ranked here.
+            </p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="chart-canvas-wrap chart-tall">
+              <canvas id="competition-chart" aria-label="Most oversubscribed council-run primary schools"></canvas>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>Empty desks at the front of school</h2>
+            <p class="chart-caption">
+              Reception places offered versus places actually filled on offer
+              day at council-run primaries. Falling rolls leave a widening gap
+              — and because funding follows pupils, empty places squeeze
+              school budgets.
+            </p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="chart-canvas-wrap">
+              <canvas id="fill-chart" aria-label="Reception places offered vs filled at council-run primaries"></canvas>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>More schools left with spare places</h2>
+            <p class="chart-caption">
+              The share of council-run primaries that didn't fill their
+              reception class on offer day. A school under-filled year after
+              year eventually faces shrinking or closing.
+            </p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="chart-canvas-wrap">
+              <canvas id="spare-chart" aria-label="Share of council-run primaries with unfilled reception places"></canvas>
+            </div>
+          </div>
+        </figure>
+      </div>
+
+      <section class="container source-block">
+        <p>
+          <strong>Sources:</strong>
+          <a href="https://datamillnorth.org/dataset/primary-preferences-24l45" rel="noopener">Primary preferences</a>,
+          <a href="https://datamillnorth.org/dataset/primary-school-allocations-e6qpz" rel="noopener">primary allocations</a>,
+          <a href="https://datamillnorth.org/dataset/secondary-school-preferences-e619w" rel="noopener">secondary preferences</a> and
+          <a href="https://datamillnorth.org/dataset/secondary-school-allocations-23ym1" rel="noopener">secondary allocations</a>
+          on Datamillnorth, published by Leeds City Council.
+          Last updated <span id="source-updated">—</span>.
+        </p>
+        <p class="muted">
+          Preference counts cover every state school parents can apply to
+          through Leeds. Admission numbers and places filled are only
+          published for community and voluntary-controlled schools — academies
+          and free schools run their own admissions — so the per-school and
+          fill charts describe council-run schools only, and secondary
+          equivalents can't be built (nearly all Leeds secondaries are now
+          academies). "First choice" means ranked first on the application;
+          it is not the same as the offer a family eventually received.
+        </p>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <p>
+          Data from
+          <a href="https://datamillnorth.org" rel="noopener">Datamillnorth.org</a>,
+          licensed under the
+          <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/" rel="noopener">Open Government Licence</a>.
+        </p>
+        <p>
+          Built by Dan Stone. Source on
+          <a href="https://github.com/danstone24/leeds-data" rel="noopener">GitHub</a>.
+        </p>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script type="module" src="/assets/js/charts/schools.js" defer></script>
+  </body>
+</html>

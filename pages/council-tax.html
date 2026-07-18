@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Road safety &amp; collisions — Leeds Data</title>
+    <title>Council tax — Leeds Data</title>
     <meta
       name="description"
-      content="Are Leeds' roads getting safer? Road traffic casualties, serious injuries and deaths since 2009, drawn from police Stats19 data on Datamillnorth."
+      content="What Leeds households pay in council tax, how the bill has grown since 1993, and where the money goes — council, police and fire."
     />
     <meta name="theme-color" content="#f9f6ef" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#1b1a17" media="(prefers-color-scheme: dark)" />
@@ -27,11 +27,11 @@
     <nav class="section-nav" aria-label="Topics">
       <div class="container section-nav-inner">
         <a href="/pages/spending.html">Spending</a>
-        <a href="/pages/council-tax.html">Council tax</a>
+        <a href="/pages/council-tax.html" aria-current="page">Council tax</a>
         <a href="/pages/housing.html">Housing</a>
         <a href="/pages/schools.html">Schools</a>
         <a href="/pages/potholes.html">Potholes</a>
-        <a href="/pages/collisions.html" aria-current="page">Road safety</a>
+        <a href="/pages/collisions.html">Road safety</a>
         <a href="/pages/getting-around.html">Getting around</a>
         <a href="/pages/footfall.html">Footfall</a>
         <a href="/about.html">About</a>
@@ -41,30 +41,30 @@
     <main>
       <section class="topic-hero">
         <div class="container">
-          <p class="hero-kicker">Road safety &amp; collisions</p>
-          <h1 class="hero-title">Are our roads getting safer?</h1>
+          <p class="hero-kicker">Council tax</p>
+          <h1 class="hero-title">What does Leeds pay, and who gets it?</h1>
           <p class="hero-lede" id="summary-line">
-            Loading road casualty figures from Leeds City Council&hellip;
+            Loading council tax figures from Leeds City Council&hellip;
           </p>
         </div>
       </section>
 
       <section class="container stat-grid" aria-label="Headline figures">
         <div class="stat">
-          <span class="stat-label">Casualties <span id="latest-year">last year</span></span>
-          <span class="stat-value" id="stat-casualties">—</span>
+          <span class="stat-label">Band D bill <span id="latest-year">this year</span></span>
+          <span class="stat-value" id="stat-bandd">—</span>
         </div>
         <div class="stat">
-          <span class="stat-label">Killed or seriously injured</span>
-          <span class="stat-value" id="stat-ksi">—</span>
+          <span class="stat-label">Rise on last year</span>
+          <span class="stat-value" id="stat-yoy">—</span>
         </div>
         <div class="stat">
-          <span class="stat-label">Deaths</span>
-          <span class="stat-value" id="stat-deaths">—</span>
+          <span class="stat-label">Versus <span id="first-year">1993/94</span></span>
+          <span class="stat-value" id="stat-since">—</span>
         </div>
         <div class="stat">
-          <span class="stat-label" id="change-label">Change since 2009</span>
-          <span class="stat-value" id="stat-change">—</span>
+          <span class="stat-label">Kept by the council</span>
+          <span class="stat-value" id="stat-share">—</span>
         </div>
       </section>
 
@@ -72,16 +72,18 @@
         <figure class="figure">
           <figcaption>
             <span class="figure-no"></span>
-            <h2>Casualties each year, by severity</h2>
-            <p class="chart-caption">
-              Every injured casualty recorded by West Yorkshire Police, split by how
-              serious the injury was. The total has fallen sharply since 2009, with a
-              steep dip in 2020 during the pandemic lockdowns.
+            <h2>Three decades of the band D bill</h2>
+            <p class="chart-caption" id="stack-caption">
+              What a band D household pays each year, split between the three
+              bodies that levy it: Leeds City Council, West Yorkshire's police,
+              and its fire service. The council's slice includes the adult
+              social care precept it has charged since 2016. Figures are cash
+              amounts, not adjusted for inflation.
             </p>
           </figcaption>
           <div class="figure-body">
             <div class="chart-canvas-wrap">
-              <canvas id="severity-chart" aria-label="Casualties per year by severity"></canvas>
+              <canvas id="stack-chart" aria-label="Band D council tax by precepting authority since 1993"></canvas>
             </div>
           </div>
         </figure>
@@ -89,16 +91,17 @@
         <figure class="figure">
           <figcaption>
             <span class="figure-no"></span>
-            <h2>The serious cases haven't followed</h2>
+            <h2>How hard each year's rise bit</h2>
             <p class="chart-caption">
-              Killed or seriously injured (KSI) is the measure behind the city's
-              "Vision Zero" ambition. Unlike the total, it has climbed back up since
-              the pandemic — the hardest injuries to prevent are proving stubborn.
+              The annual percentage increase in the band D bill. The early-2000s
+              rises ran well ahead of inflation until national caps arrived;
+              since 2016 the adult social care precept has pushed rises back
+              towards 5% a year.
             </p>
           </figcaption>
           <div class="figure-body">
             <div class="chart-canvas-wrap">
-              <canvas id="ksi-chart" aria-label="Killed or seriously injured per year"></canvas>
+              <canvas id="rise-chart" aria-label="Annual percentage increase in band D council tax"></canvas>
             </div>
           </div>
         </figure>
@@ -106,32 +109,17 @@
         <figure class="figure">
           <figcaption>
             <span class="figure-no"></span>
-            <h2>Who gets hurt?</h2>
+            <h2>What each band pays <span id="bands-year"></span></h2>
             <p class="chart-caption">
-              Casualties split into drivers and riders, their passengers, and
-              pedestrians. Pedestrians are among the most vulnerable — they have no
-              vehicle around them.
+              Your band was set by your home's value in 1991 — most Leeds homes
+              are in bands A to C, so most households pay less than the
+              often-quoted band D figure. Band H pays double band D; band A
+              pays two-thirds of it.
             </p>
           </figcaption>
           <div class="figure-body">
             <div class="chart-canvas-wrap">
-              <canvas id="class-chart" aria-label="Casualties by road-user type each year"></canvas>
-            </div>
-          </div>
-        </figure>
-
-        <figure class="figure">
-          <figcaption>
-            <span class="figure-no"></span>
-            <h2>When do crashes happen?</h2>
-            <p class="chart-caption">
-              Casualties by hour of the day, added up across every year. The evening
-              rush hour is the most dangerous time to be on Leeds' roads.
-            </p>
-          </figcaption>
-          <div class="figure-body">
-            <div class="chart-canvas-wrap">
-              <canvas id="hour-chart" aria-label="Casualties by hour of day"></canvas>
+              <canvas id="bands-chart" aria-label="Council tax charge by band in the latest year"></canvas>
             </div>
           </div>
         </figure>
@@ -140,18 +128,17 @@
       <section class="container source-block">
         <p>
           <strong>Source:</strong>
-          <a id="source-link" href="https://datamillnorth.org/dataset/road-traffic-collisions-2o11d" rel="noopener">Road traffic collisions on Datamillnorth</a>,
-          published by Leeds City Council from police Stats19 records.
+          <a id="source-link" href="https://datamillnorth.org/dataset/council-tax-charges-24zz5" rel="noopener">Council tax charges on Datamillnorth</a>,
+          published by Leeds City Council.
           Last updated <span id="source-updated">—</span>.
         </p>
         <p class="muted">
-          Each row is one injured casualty, so a single crash can produce several.
-          Figures cover injuries reported to West Yorkshire Police; minor knocks
-          that go unreported won't appear. The council changed its file format
-          around 2017 — older years spell severity out, newer ones use Stats19
-          codes — which we normalise. "KSI" means killed or seriously injured.
-          Location coordinates are only published for the earlier years, so this
-          page focuses on the trend rather than a map.
+          Figures are the headline charge for each band before any discounts —
+          single-person households pay 25% less, and council tax support
+          reduces bills further. Parish areas pay a small extra precept on top
+          (not shown). All amounts are cash-terms: £100 in 1993 bought far more
+          than £100 today, so the long-run chart overstates how much heavier
+          the burden has become in real terms.
         </p>
       </section>
     </main>
@@ -172,6 +159,6 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-    <script type="module" src="/assets/js/charts/collisions.js" defer></script>
+    <script type="module" src="/assets/js/charts/council-tax.js" defer></script>
   </body>
 </html>

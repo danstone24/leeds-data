@@ -15,7 +15,16 @@ import { buildPotholes, mergePotholeRow } from "../src/potholes.js";
 import { buildCollisions, isRealCollisionRow } from "../src/collisions.js";
 import { accumulateCountRow, finaliseCounts, parseSites } from "../src/counts.js";
 import { accumulateFootRow, finaliseFootfall } from "../src/footfall.js";
-import { parseCsvObjects } from "../src/csv.js";
+import { buildCouncilTax } from "../src/counciltax.js";
+import {
+  accumulateBidRow,
+  parseStockRecords,
+  accumulateTenantedRow,
+  newTenantedAcc,
+  finaliseHousing,
+} from "../src/housing.js";
+import { parsePrefsRecords, parseAllocRecords, buildSchools } from "../src/schools.js";
+import { parseCsvObjects, parseCsvStream } from "../src/csv.js";
 
 // Bump this when buildMonthlySummary's logic or output shape changes — it
 // invalidates every stored hash so the next run re-aggregates everything.
@@ -37,6 +46,20 @@ const COUNTS_MAX_BYTES = 6_000_000;
 // And footfall (the messy 575-file one).
 const FOOTFALL_VERSION = "v1";
 const FOOTFALL_DATASET_ID = "2rlld";
+// And council tax (one small precepts file).
+const COUNCILTAX_VERSION = "v1";
+const COUNCILTAX_DATASET_ID = "24zz5";
+// And council housing (three datasets on one page).
+const HOUSING_VERSION = "v1";
+const HOUSING_DATASETS = { bids: "20jjj", stock: "2o1gn", tenanted: "ep6qr" };
+// And school places (four datasets, two phases).
+const SCHOOLS_VERSION = "v1";
+const SCHOOLS_DATASETS = {
+  primaryPrefs: "24l45",
+  primaryAlloc: "e6qpz",
+  secondaryPrefs: "e619w",
+  secondaryAlloc: "23ym1",
+};
 
 const {
   CLOUDFLARE_API_TOKEN,
@@ -524,6 +547,197 @@ async function refreshFootfall() {
   console.log("  wrote footfall:summary, footfall:hash");
 }
 
+// Council tax: one small precepts CSV covering every year since 1993. The
+// dataset also holds per-year "charges by band" and parish files, but the
+// precepts file alone carries the whole story; the rest are ignored.
+async function refreshCouncilTax() {
+  console.log(`Council tax: aggregating (version ${COUNCILTAX_VERSION})…`);
+  const dataset = await getDataset(env, COUNCILTAX_DATASET_ID);
+  const resources = listCsvResources(dataset).filter((r) =>
+    /major council tax precepts/i.test(r.title)
+  );
+  if (!resources.length) {
+    console.warn("  no precepts CSV found — skipping council tax");
+    return;
+  }
+  // Titles end "1993-2024", "1993-2026", … — the biggest end year is current.
+  const endYear = (r) => Number((r.title.match(/-\s*(\d{4})/) || [])[1] || 0);
+  resources.sort((a, b) => endYear(b) - endYear(a));
+  const resource = resources[0];
+
+  const fingerprint = `${COUNCILTAX_VERSION}:${resource.hash || `${resource.id}:${resource.size}`}`;
+  const lastFingerprint = await kvGet("counciltax:hash");
+  if (FORCE !== "1" && lastFingerprint === fingerprint) {
+    console.log("  ✓ unchanged, skipping");
+    return;
+  }
+
+  const rows = [];
+  const stream = await streamCsv(env, resource.url);
+  for await (const row of parseCsvObjects(stream)) rows.push(row);
+  const summary = buildCouncilTax(rows, resource);
+  console.log(
+    `  "${resource.title}": ${summary.years.length} years · band D ${summary.latest?.year} ` +
+    `£${summary.latest?.bandD.total} (${(summary.changeYoY * 100).toFixed(1)}% YoY)`
+  );
+
+  await kvBulkPut([
+    { key: "counciltax:summary", value: JSON.stringify(summary) },
+    { key: "counciltax:hash", value: fingerprint },
+  ]);
+  console.log("  wrote counciltax:summary, counciltax:hash");
+}
+
+// Council housing: bids (many quarterly/annual files), stock by ward (one
+// cumulative file, latest wins), and the latest tenanted-stock snapshot.
+async function refreshHousing() {
+  console.log(`Housing: aggregating (version ${HOUSING_VERSION})…`);
+
+  const [bidsDs, stockDs, tenDs] = await Promise.all([
+    getDataset(env, HOUSING_DATASETS.bids),
+    getDataset(env, HOUSING_DATASETS.stock),
+    getDataset(env, HOUSING_DATASETS.tenanted),
+  ]);
+
+  // Bids: every data file (the two lookup-table "guidance" docs are not data).
+  const bidFiles = listCsvResources(bidsDs).filter((r) => !/guidance/i.test(r.title));
+
+  // Stock: cumulative re-publishes — the file with the biggest year wins.
+  const maxYear = (r) => Math.max(0, ...(r.title.match(/\d{4}/g) || []).map(Number));
+  const stockFile = listCsvResources(stockDs).sort((a, b) => maxYear(b) - maxYear(a))[0];
+
+  // Tenanted: snapshots titled "31/03/2026.csv" — latest date wins.
+  const snapDate = (r) => {
+    const m = r.title.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : "";
+  };
+  const tenFile = listCsvResources(tenDs).sort((a, b) => snapDate(b).localeCompare(snapDate(a)))[0];
+
+  if (!bidFiles.length || !stockFile || !tenFile) {
+    console.warn("  missing source files — skipping housing");
+    return;
+  }
+
+  const fingerprint =
+    `${HOUSING_VERSION}:` +
+    [...bidFiles, stockFile, tenFile].map((r) => r.hash || `${r.id}:${r.size}`).sort().join(",");
+  const lastFingerprint = await kvGet("housing:hash");
+  if (FORCE !== "1" && lastFingerprint === fingerprint) {
+    console.log("  ✓ unchanged, skipping");
+    return;
+  }
+
+  const bidsAcc = new Map();
+  let ok = 0;
+  for (const r of bidFiles) {
+    try {
+      const stream = await streamCsv(env, r.url);
+      for await (const row of parseCsvObjects(stream)) accumulateBidRow(bidsAcc, row);
+      ok++;
+    } catch (err) {
+      console.warn(`  failed on bids "${r.title}": ${err.message}`);
+    }
+  }
+  console.log(`  bids: ${ok}/${bidFiles.length} files`);
+
+  const stockRecords = [];
+  for await (const rec of parseCsvStream(await streamCsv(env, stockFile.url))) stockRecords.push(rec);
+  const stockYearly = parseStockRecords(stockRecords);
+  console.log(`  stock: "${stockFile.title}" → ${stockYearly.length} years`);
+
+  const tenAcc = newTenantedAcc();
+  for await (const row of parseCsvObjects(await streamCsv(env, tenFile.url))) {
+    accumulateTenantedRow(tenAcc, row);
+  }
+  console.log(`  tenanted: "${tenFile.title}" → ${tenAcc.total.toLocaleString()} properties`);
+
+  const summary = finaliseHousing(bidsAcc, stockYearly, tenAcc, { snapshotDate: snapDate(tenFile) });
+  const latestFull = summary.bids.yearly.filter((y) => y.monthsCovered === 12).pop();
+  console.log(
+    `  ${summary.bids.yearly.length} bid years · ${latestFull?.year}: ${latestFull?.lets} lets, ` +
+    `mean ${latestFull?.meanEoi} bids · stock ${summary.stock.latest?.total?.toLocaleString()} ` +
+    `(${(summary.stock.change * 100).toFixed(1)}% since ${summary.stock.first?.fy})`
+  );
+
+  await kvBulkPut([
+    { key: "housing:summary", value: JSON.stringify(summary) },
+    { key: "housing:hash", value: fingerprint },
+  ]);
+  console.log("  wrote housing:summary, housing:hash");
+}
+
+// School places: one resource per entry year across four datasets. Files with
+// unrecognisable schemas (the pre-2019 era) are skipped file-by-file — the
+// parsers return null rather than guessing.
+async function refreshSchools() {
+  console.log(`Schools: aggregating (version ${SCHOOLS_VERSION})…`);
+
+  const datasets = {};
+  for (const [key, id] of Object.entries(SCHOOLS_DATASETS)) {
+    datasets[key] = await getDataset(env, id);
+  }
+  const usable = (ds) =>
+    listCsvResources(ds).filter(
+      (r) => !/historical/i.test(r.title) && /20\d{2}/.test(r.title)
+    );
+  const files = Object.fromEntries(
+    Object.entries(datasets).map(([key, ds]) => [key, usable(ds)])
+  );
+
+  const all = Object.values(files).flat();
+  const fingerprint =
+    `${SCHOOLS_VERSION}:` + all.map((r) => r.hash || `${r.id}:${r.size}`).sort().join(",");
+  const lastFingerprint = await kvGet("schools:hash");
+  if (FORCE !== "1" && lastFingerprint === fingerprint) {
+    console.log("  ✓ unchanged, skipping");
+    return;
+  }
+
+  async function loadYearMap(resources, parse, label) {
+    const byYear = new Map();
+    for (const r of resources) {
+      const year = Number((r.title.match(/20\d{2}/) || [])[0]);
+      if (!year) continue;
+      try {
+        const records = [];
+        for await (const rec of parseCsvStream(await streamCsv(env, r.url))) records.push(rec);
+        const rows = parse(records);
+        if (rows) byYear.set(year, rows);
+        else console.log(`  ${label} ${year}: schema not recognised, skipped ("${r.title}")`);
+      } catch (err) {
+        console.warn(`  ${label} failed on "${r.title}": ${err.message}`);
+      }
+    }
+    return byYear;
+  }
+
+  const summary = buildSchools(
+    {
+      prefsByYear: await loadYearMap(files.primaryPrefs, parsePrefsRecords, "primary prefs"),
+      allocByYear: await loadYearMap(files.primaryAlloc, parseAllocRecords, "primary alloc"),
+    },
+    {
+      prefsByYear: await loadYearMap(files.secondaryPrefs, parsePrefsRecords, "secondary prefs"),
+      allocByYear: await loadYearMap(files.secondaryAlloc, parseAllocRecords, "secondary alloc"),
+    }
+  );
+
+  for (const phase of ["primary", "secondary"]) {
+    const p = summary[phase];
+    const latest = p.yearly.filter((y) => y.firstPrefs !== undefined).pop();
+    console.log(
+      `  ${phase}: ${p.yearly.length} years · ${latest?.year} first prefs ${latest?.firstPrefs?.toLocaleString()} · ` +
+      `competition table ${p.competition.length} schools (${p.competitionYear})`
+    );
+  }
+
+  await kvBulkPut([
+    { key: "schools:summary", value: JSON.stringify(summary) },
+    { key: "schools:hash", value: fingerprint },
+  ]);
+  console.log("  wrote schools:summary, schools:hash");
+}
+
 function monthLabel(m) {
   const [y, mo] = m.split("-");
   const names = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -543,6 +757,9 @@ async function main() {
     ["cycle", () => refreshCounts("cycle")],
     ["traffic", () => refreshCounts("traffic")],
     ["footfall", () => refreshFootfall()],
+    ["counciltax", () => refreshCouncilTax()],
+    ["housing", () => refreshHousing()],
+    ["schools", () => refreshSchools()],
   ];
 
   let failed = false;
