@@ -23,6 +23,7 @@ import {
   newTenantedAcc,
   finaliseHousing,
 } from "../src/housing.js";
+import { parsePrefsRecords, parseAllocRecords, buildSchools } from "../src/schools.js";
 import { parseCsvObjects, parseCsvStream } from "../src/csv.js";
 
 // Bump this when buildMonthlySummary's logic or output shape changes — it
@@ -51,6 +52,14 @@ const COUNCILTAX_DATASET_ID = "24zz5";
 // And council housing (three datasets on one page).
 const HOUSING_VERSION = "v1";
 const HOUSING_DATASETS = { bids: "20jjj", stock: "2o1gn", tenanted: "ep6qr" };
+// And school places (four datasets, two phases).
+const SCHOOLS_VERSION = "v1";
+const SCHOOLS_DATASETS = {
+  primaryPrefs: "24l45",
+  primaryAlloc: "e6qpz",
+  secondaryPrefs: "e619w",
+  secondaryAlloc: "23ym1",
+};
 
 const {
   CLOUDFLARE_API_TOKEN,
@@ -657,6 +666,78 @@ async function refreshHousing() {
   console.log("  wrote housing:summary, housing:hash");
 }
 
+// School places: one resource per entry year across four datasets. Files with
+// unrecognisable schemas (the pre-2019 era) are skipped file-by-file — the
+// parsers return null rather than guessing.
+async function refreshSchools() {
+  console.log(`Schools: aggregating (version ${SCHOOLS_VERSION})…`);
+
+  const datasets = {};
+  for (const [key, id] of Object.entries(SCHOOLS_DATASETS)) {
+    datasets[key] = await getDataset(env, id);
+  }
+  const usable = (ds) =>
+    listCsvResources(ds).filter(
+      (r) => !/historical/i.test(r.title) && /20\d{2}/.test(r.title)
+    );
+  const files = Object.fromEntries(
+    Object.entries(datasets).map(([key, ds]) => [key, usable(ds)])
+  );
+
+  const all = Object.values(files).flat();
+  const fingerprint =
+    `${SCHOOLS_VERSION}:` + all.map((r) => r.hash || `${r.id}:${r.size}`).sort().join(",");
+  const lastFingerprint = await kvGet("schools:hash");
+  if (FORCE !== "1" && lastFingerprint === fingerprint) {
+    console.log("  ✓ unchanged, skipping");
+    return;
+  }
+
+  async function loadYearMap(resources, parse, label) {
+    const byYear = new Map();
+    for (const r of resources) {
+      const year = Number((r.title.match(/20\d{2}/) || [])[0]);
+      if (!year) continue;
+      try {
+        const records = [];
+        for await (const rec of parseCsvStream(await streamCsv(env, r.url))) records.push(rec);
+        const rows = parse(records);
+        if (rows) byYear.set(year, rows);
+        else console.log(`  ${label} ${year}: schema not recognised, skipped ("${r.title}")`);
+      } catch (err) {
+        console.warn(`  ${label} failed on "${r.title}": ${err.message}`);
+      }
+    }
+    return byYear;
+  }
+
+  const summary = buildSchools(
+    {
+      prefsByYear: await loadYearMap(files.primaryPrefs, parsePrefsRecords, "primary prefs"),
+      allocByYear: await loadYearMap(files.primaryAlloc, parseAllocRecords, "primary alloc"),
+    },
+    {
+      prefsByYear: await loadYearMap(files.secondaryPrefs, parsePrefsRecords, "secondary prefs"),
+      allocByYear: await loadYearMap(files.secondaryAlloc, parseAllocRecords, "secondary alloc"),
+    }
+  );
+
+  for (const phase of ["primary", "secondary"]) {
+    const p = summary[phase];
+    const latest = p.yearly.filter((y) => y.firstPrefs !== undefined).pop();
+    console.log(
+      `  ${phase}: ${p.yearly.length} years · ${latest?.year} first prefs ${latest?.firstPrefs?.toLocaleString()} · ` +
+      `competition table ${p.competition.length} schools (${p.competitionYear})`
+    );
+  }
+
+  await kvBulkPut([
+    { key: "schools:summary", value: JSON.stringify(summary) },
+    { key: "schools:hash", value: fingerprint },
+  ]);
+  console.log("  wrote schools:summary, schools:hash");
+}
+
 function monthLabel(m) {
   const [y, mo] = m.split("-");
   const names = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -678,6 +759,7 @@ async function main() {
     ["footfall", () => refreshFootfall()],
     ["counciltax", () => refreshCouncilTax()],
     ["housing", () => refreshHousing()],
+    ["schools", () => refreshSchools()],
   ];
 
   let failed = false;

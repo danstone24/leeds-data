@@ -20,6 +20,7 @@
 //   GET /api/footfall/summary
 //   GET /api/counciltax/summary
 //   GET /api/housing/summary
+//   GET /api/schools/summary
 
 import {
   handleSummary,
@@ -33,6 +34,7 @@ import { handleCountsSummary } from "./counts.js";
 import { handleFootfallSummary } from "./footfall.js";
 import { handleCouncilTaxSummary } from "./counciltax.js";
 import { handleHousingSummary } from "./housing.js";
+import { handleSchoolsSummary } from "./schools.js";
 
 const CORS_HEADERS = {
   "access-control-allow-origin": "*",
@@ -144,6 +146,11 @@ export default {
     if (path === "/housing/summary") {
       const data = await handleHousingSummary(env);
       return data ? json(data) : json({ error: "No housing data yet" }, { status: 503 });
+    }
+
+    if (path === "/schools/summary") {
+      const data = await handleSchoolsSummary(env);
+      return data ? json(data) : json({ error: "No schools data yet" }, { status: 503 });
     }
 
     const txnMatch = path.match(/^\/spending\/transactions\/(\d{4}-\d{2})$/);

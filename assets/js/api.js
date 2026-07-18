@@ -56,3 +56,7 @@ export function getCouncilTaxSummary() {
 export function getHousingSummary() {
   return getJson("/api/housing/summary");
 }
+
+export function getSchoolsSummary() {
+  return getJson("/api/schools/summary");
+}
