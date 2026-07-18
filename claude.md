@@ -57,12 +57,15 @@ A public website that visualises open data published by **Leeds City Council** v
 ├── index.html            ← homepage
 ├── assets/
 │   ├── css/
-│   │   └── style.css     ← single global stylesheet
+│   │   └── style.css     ← single global stylesheet (design tokens live here)
+│   ├── fonts/            ← self-hosted Newsreader + IBM Plex Sans (OFL)
 │   ├── js/
 │   │   ├── main.js       ← page bootstrap
 │   │   ├── api.js        ← fetch helpers, talks to /api/*
-│   │   └── charts/       ← one file per chart type (chart-spending.js, …)
+│   │   └── charts/       ← theme.js (shared chart theme) + one file per page
 │   └── img/
+├── scripts/
+│   └── dev.mjs           ← local dev server; proxies /api/* to production
 ├── pages/                ← topic pages (potholes.html, spending.html, …)
 ├── workers/
 │   └── api/              ← Worker (KV reader) + refresh script
@@ -103,9 +106,27 @@ A public website that visualises open data published by **Leeds City Council** v
 - Worker responses are JSON, shape: `{ data: [...], updated: "ISO-8601", source: "url" }`.
 - Always show "last updated" and "source" on any chart so visitors trust the data.
 
-**Visuals**
+**Visuals — the broadsheet design system (July 2026 overhaul)**
+- The look is **data-journalism broadsheet**: warm paper ground, ink hairline
+  rules (no card boxes or shadows), serif display headlines (**Newsreader**),
+  sans UI/figures (**IBM Plex Sans**). Fonts are self-hosted in `assets/fonts/`
+  (latin-subset variable woff2, OFL — see the LICENSE.md there). No CDN fonts.
+- Charts are auto-numbered figures: `<figure class="figure">` with a
+  `<figcaption>` rail (`.figure-no` renders "Fig. N" via CSS counter, then the
+  h2 + caption) and a `.figure-body`. On ≥960px the caption sits in a left
+  margin column beside the chart.
 - **Chart.js** for bar/line/donut. **Leaflet** for maps. D3 only if a viz genuinely can't be done with the above.
-- Colour palette defined in `assets/css/style.css` as CSS variables. Never hardcode colours in chart configs — pull from CSS.
+- All chart styling flows through `assets/js/charts/theme.js` — call
+  `applyChartTheme()` once per page and use its `tokens()/series()/ordinal()/wash()/axes` helpers.
+  Never hardcode colours in chart configs — every colour is a CSS variable in `style.css`.
+- The categorical palette (`--series-1..8`) and ordinal ramps (`--ord-red-*`,
+  `--ord-blue-*`) are **validated** (CVD separation, lightness band, contrast)
+  against both paper surfaces. If you change any of them, re-run the dataviz
+  palette validator before shipping. Rules that must hold: assign categorical
+  hues in fixed order and never cycle past 8 (fold the tail into a neutral
+  "Everything else"); ordered buckets (severity, durations) use an ordinal
+  one-hue ramp; status colours (`--status-*`) are reserved for meaning, never
+  used as "series 4"; single-series charts get no legend; charts don't animate.
 - All charts must be readable on mobile (320px+) and respect `prefers-reduced-motion`.
 
 **Accessibility**
@@ -156,7 +177,7 @@ See [docs/data-sources.md](docs/data-sources.md) for the curated list of dataset
 4. Don't introduce a framework, bundler, or new dependency without first proposing it to Dan and explaining the tradeoff. Plain HTML/JS is a deliberate choice.
 5. Don't call Datamillnorth from the browser. Always proxy via the Worker.
 6. Test mobile width (DevTools 375px) before declaring a chart done.
-7. Run a quick local server (`python3 -m http.server` from repo root) to sanity-check before pushing.
+7. Run the local dev server (`node scripts/dev.mjs`, then http://localhost:8787) to sanity-check before pushing — it serves the static site **and proxies `/api/*` to production**, so charts render with real data locally.
 
 ---
 
@@ -179,6 +200,7 @@ See [docs/data-sources.md](docs/data-sources.md) for the curated list of dataset
 - [x] Fourth + fifth datasets (Cycle `e1dmk` + Traffic `e6q0n` growth twins) — live at pages/getting-around.html: combined "do you still need a car?" modal-shift page. Shared aggregator `counts.js` (identical schema). Normalises to **mean daily flow per recorder** because working-recorder counts vary month to month; buckets rows by in-row `Sdate` (titles unreliable); handles zero-padded Cosit and two location-doc formats. Charts: modal-shift index, per-mode annual trends, cycling seasonality, recorder map.
 - [x] Sixth dataset (City centre footfall, id `2rlld`) — live at pages/footfall.html: long-run footfall trend (pandemic crash + recovery), by-hour rhythm, by-weekday, busiest streets. The fiddly one: ~575 overlapping CSVs across 3 schema eras, deduped by (date,hour,camera) keeping max (prefers council's revised-up figures), camera renames folded, mean-daily-per-camera normalisation. See `footfall.js`.
 - [x] About / methodology page — live at /about.html: why the site exists, where data comes from, how numbers are handled (two principles), a plain-English methodology note per dataset, how it's built, contact.
+- [x] Full UI overhaul (July 2026): broadsheet design system — self-hosted Newsreader + IBM Plex Sans, paper/ink tokens with hairline rules, double-rule masthead + topic section-nav, numbered figures with a marginalia caption rail, validated chart palette applied through `assets/js/charts/theme.js` (fixed-order categorical slots, ordinal ramps for severity/duration, status red for KSI, donut tail folded past 7 hues), themed Leaflet popups/clusters, dark mode re-derived (not flipped), charts non-animated. Verified light+dark, desktop+375px, zero console errors, donut drill exercised.
 
 All six planned datasets + the About page are now built. Next candidates: recycling/waste, planning applications, air quality (still "Coming soon" cards on the homepage).
 

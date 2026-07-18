@@ -2,27 +2,12 @@
 // when crashes happen. Chart.js is loaded as a global in the page.
 
 import { getCollisionsSummary } from "../api.js";
+import { applyChartTheme, tokens, series, ordinal, axes } from "./theme.js";
 
 const fmtNumber = new Intl.NumberFormat("en-GB");
 const fmtSignedPct = (n) => `${n > 0 ? "+" : "−"}${Math.abs(Math.round(n * 100))}%`;
 
-const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-const palette = () => ({
-  accent: css("--color-accent"),
-  amber: css("--chart-2"),
-  red: css("--chart-4"),
-  blue: css("--chart-3"),
-  violet: css("--chart-6"),
-  text: css("--color-text"),
-  muted: css("--color-text-muted"),
-  grid: css("--color-border"),
-});
-
-const baseScales = (p) => ({
-  x: { stacked: false, ticks: { color: p.muted, maxRotation: 0, autoSkip: true }, grid: { display: false } },
-  y: { beginAtZero: true, ticks: { color: p.muted }, grid: { color: p.grid } },
-});
-
+applyChartTheme();
 bootstrap();
 
 async function bootstrap() {
@@ -64,36 +49,44 @@ function renderStats(s) {
   document.getElementById("source-updated").textContent = updated;
 }
 
+// Severity is ordered (slight → serious → fatal): one red hue, stepped.
 function renderSeverity(yearly) {
-  const p = palette();
+  const t = tokens();
+  const [slight, serious, fatal] = ordinal("red", 3);
   new Chart(document.getElementById("severity-chart"), {
     type: "bar",
     data: {
       labels: yearly.map((y) => y.year),
       datasets: [
-        { label: "Slight", data: yearly.map((y) => y.slight), backgroundColor: p.accent, stack: "s" },
-        { label: "Serious", data: yearly.map((y) => y.serious), backgroundColor: p.amber, stack: "s" },
-        { label: "Fatal", data: yearly.map((y) => y.fatal), backgroundColor: p.red, stack: "s" },
-      ],
+        { label: "Slight", data: yearly.map((y) => y.slight), backgroundColor: slight, stack: "s" },
+        { label: "Serious", data: yearly.map((y) => y.serious), backgroundColor: serious, stack: "s" },
+        { label: "Fatal", data: yearly.map((y) => y.fatal), backgroundColor: fatal, stack: "s" },
+      ].map((d) => ({
+        ...d,
+        // 2px surface gap between stacked segments
+        borderColor: t.surface,
+        borderWidth: { top: 2 },
+        borderSkipped: false,
+      })),
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
       plugins: {
-        legend: { labels: { color: p.text, usePointStyle: true, boxWidth: 8 } },
         tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${fmtNumber.format(c.parsed.y)}` } },
       },
       scales: {
-        x: { stacked: true, ticks: { color: p.muted, maxRotation: 0, autoSkip: true }, grid: { display: false } },
-        y: { stacked: true, beginAtZero: true, ticks: { color: p.muted }, grid: { color: p.grid } },
+        x: axes.x({ stacked: true }),
+        y: axes.y({ stacked: true }),
       },
     },
   });
 }
 
+// KSI measures harm, so it wears the reserved status colour, not a series hue.
 function renderKsi(yearly) {
-  const p = palette();
+  const t = tokens();
   new Chart(document.getElementById("ksi-chart"), {
     type: "line",
     data: {
@@ -102,11 +95,9 @@ function renderKsi(yearly) {
         {
           label: "Killed or seriously injured",
           data: yearly.map((y) => y.ksi),
-          borderColor: p.red,
-          backgroundColor: p.red,
+          borderColor: t.statusCritical,
+          pointBackgroundColor: t.statusCritical,
           tension: 0.3,
-          pointRadius: 3,
-          fill: false,
         },
       ],
     },
@@ -122,47 +113,51 @@ function renderKsi(yearly) {
           },
         },
       },
-      scales: baseScales(p),
+      scales: { x: axes.x(), y: axes.y() },
     },
   });
 }
 
 function renderClass(yearly) {
-  const p = palette();
+  const t = tokens();
+  const slots = series(3); // blue, green, magenta — fixed order, never cycled
   new Chart(document.getElementById("class-chart"), {
     type: "bar",
     data: {
       labels: yearly.map((y) => y.year),
       datasets: [
-        { label: "Drivers & riders", data: yearly.map((y) => y.driver), backgroundColor: p.blue, stack: "c" },
-        { label: "Passengers", data: yearly.map((y) => y.passenger), backgroundColor: p.violet, stack: "c" },
-        { label: "Pedestrians", data: yearly.map((y) => y.pedestrian), backgroundColor: p.amber, stack: "c" },
-      ],
+        { label: "Drivers & riders", data: yearly.map((y) => y.driver), backgroundColor: slots[0], stack: "c" },
+        { label: "Passengers", data: yearly.map((y) => y.passenger), backgroundColor: slots[1], stack: "c" },
+        { label: "Pedestrians", data: yearly.map((y) => y.pedestrian), backgroundColor: slots[2], stack: "c" },
+      ].map((d) => ({
+        ...d,
+        borderColor: t.surface,
+        borderWidth: { top: 2 },
+        borderSkipped: false,
+      })),
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
       plugins: {
-        legend: { labels: { color: p.text, usePointStyle: true, boxWidth: 8 } },
         tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${fmtNumber.format(c.parsed.y)}` } },
       },
       scales: {
-        x: { stacked: true, ticks: { color: p.muted, maxRotation: 0, autoSkip: true }, grid: { display: false } },
-        y: { stacked: true, beginAtZero: true, ticks: { color: p.muted }, grid: { color: p.grid } },
+        x: axes.x({ stacked: true }),
+        y: axes.y({ stacked: true }),
       },
     },
   });
 }
 
 function renderHour(byHour) {
-  const p = palette();
   const label = (h) => `${String(h).padStart(2, "0")}:00`;
   new Chart(document.getElementById("hour-chart"), {
     type: "bar",
     data: {
       labels: byHour.map((h) => label(h.hour)),
-      datasets: [{ label: "Casualties", data: byHour.map((h) => h.count), backgroundColor: p.accent, borderRadius: 3 }],
+      datasets: [{ data: byHour.map((h) => h.count), backgroundColor: series(1)[0] }],
     },
     options: {
       responsive: true,
@@ -178,8 +173,8 @@ function renderHour(byHour) {
         },
       },
       scales: {
-        x: { ticks: { color: p.muted, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 }, grid: { display: false } },
-        y: { beginAtZero: true, ticks: { color: p.muted }, grid: { color: p.grid } },
+        x: axes.x({ ticks: { color: tokens().inkMuted, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } }),
+        y: axes.y(),
       },
     },
   });

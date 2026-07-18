@@ -3,6 +3,7 @@
 // recorder map. Chart.js and Leaflet are page globals.
 
 import { getCountsSummary } from "../api.js";
+import { applyChartTheme, tokens, series, axes } from "./theme.js";
 
 // A year needs at least this many months of data before we trust its annual
 // average — cycling is strongly seasonal, so a couple of winter months would
@@ -18,21 +19,14 @@ const MONTHS_LONG = ["January","February","March","April","May","June","July","A
 const fmtNumber = new Intl.NumberFormat("en-GB");
 const fmtSignedPct = (n) => `${n >= 0 ? "+" : "−"}${Math.abs(Math.round(n * 100))}%`;
 
-const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-const palette = () => ({
-  cycle: css("--color-accent"),
-  traffic: css("--chart-3"),
-  text: css("--color-text"),
-  muted: css("--color-text-muted"),
-  grid: css("--color-border"),
-});
-const fade = (hex, a) => {
-  const h = hex.replace("#", "");
-  const n = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
-  const r = parseInt(n.slice(0, 2), 16), g = parseInt(n.slice(2, 4), 16), b = parseInt(n.slice(4, 6), 16);
-  return `rgba(${r}, ${g}, ${b}, ${a})`;
+// Cycling wears green (slot 2), traffic blue (slot 1) — a validated adjacent
+// pair, held consistently across every chart and the map on this page.
+const modeColours = () => {
+  const [blue, green] = series(2);
+  return { cycle: green, traffic: blue };
 };
 
+applyChartTheme();
 bootstrap();
 
 async function bootstrap() {
@@ -42,8 +36,8 @@ async function bootstrap() {
       getCountsSummary("traffic"),
     ]);
     renderIndex(cycle, traffic);
-    renderAnnual("cycle-chart", cycle, palette().cycle, "bikes");
-    renderAnnual("traffic-chart", traffic, palette().traffic, "vehicles");
+    renderAnnual("cycle-chart", cycle, modeColours().cycle, "bikes");
+    renderAnnual("traffic-chart", traffic, modeColours().traffic, "vehicles");
     renderSeason(cycle);
     renderStats(cycle, traffic);
     renderMap(cycle, traffic);
@@ -74,26 +68,27 @@ function indexSeries(s, baselineYear) {
 }
 
 function renderIndex(cycle, traffic) {
-  const p = palette();
+  const t = tokens();
+  const mode = modeColours();
   const baseYear = commonBaseline(cycle, traffic);
   if (!baseYear) {
-    document.querySelector('[aria-label="Cycling and traffic index over time"]').closest(".chart-section").style.display = "none";
+    document.querySelector('[aria-label="Cycling and traffic index over time"]').closest(".figure").style.display = "none";
     return;
   }
   document.getElementById("baseline-year").textContent = baseYear;
 
   const c = indexSeries(cycle, baseYear);
-  const t = indexSeries(traffic, baseYear);
-  const years = [...new Set([...c, ...t].map((d) => d.year))].sort((a, b) => a - b);
-  const at = (series, yr) => { const f = series.find((d) => d.year === yr); return f ? Math.round(f.index) : null; };
+  const tr = indexSeries(traffic, baseYear);
+  const years = [...new Set([...c, ...tr].map((d) => d.year))].sort((a, b) => a - b);
+  const at = (series_, yr) => { const f = series_.find((d) => d.year === yr); return f ? Math.round(f.index) : null; };
 
   new Chart(document.getElementById("index-chart"), {
     type: "line",
     data: {
       labels: years,
       datasets: [
-        { label: "Cycling", data: years.map((y) => at(c, y)), borderColor: p.cycle, backgroundColor: p.cycle, tension: 0.3, pointRadius: 3, spanGaps: true },
-        { label: "Car traffic", data: years.map((y) => at(t, y)), borderColor: p.traffic, backgroundColor: p.traffic, tension: 0.3, pointRadius: 3, spanGaps: true },
+        { label: "Cycling", data: years.map((y) => at(c, y)), borderColor: mode.cycle, pointBackgroundColor: mode.cycle, tension: 0.3, spanGaps: true },
+        { label: "Car traffic", data: years.map((y) => at(tr, y)), borderColor: mode.traffic, pointBackgroundColor: mode.traffic, tension: 0.3, spanGaps: true },
       ],
     },
     options: {
@@ -101,33 +96,30 @@ function renderIndex(cycle, traffic) {
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
       plugins: {
-        legend: { labels: { color: p.text, usePointStyle: true, boxWidth: 8 } },
         tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y} (baseline ${baseYear} = 100)` } },
       },
       scales: {
-        x: { ticks: { color: p.muted }, grid: { display: false } },
-        y: {
-          ticks: { color: p.muted, callback: (v) => v },
-          grid: { color: (ctx) => (ctx.tick.value === 100 ? p.muted : p.grid) },
-          title: { display: true, text: `Index (${baseYear} = 100)`, color: p.muted },
-        },
+        x: axes.x(),
+        y: axes.y({
+          beginAtZero: false,
+          // the =100 baseline reads a step darker than the ordinary grid
+          grid: { color: (ctx) => (ctx.tick.value === 100 ? t.axis : t.grid), drawTicks: false },
+          title: { display: true, text: `Index (${baseYear} = 100)`, color: t.inkMuted },
+        }),
       },
     },
   });
 }
 
 function renderAnnual(canvasId, s, colour, noun) {
-  const p = palette();
   const years = (s.yearly || []).filter((y) => y.monthsCovered >= MIN_MONTHS && y.year >= MIN_YEAR);
   new Chart(document.getElementById(canvasId), {
     type: "bar",
     data: {
       labels: years.map((y) => y.year),
       datasets: [{
-        label: `Average ${noun} per counter per day`,
         data: years.map((y) => y.meanDailyFlow),
-        backgroundColor: years.map((y) => (y.monthsCovered >= MIN_MONTHS ? colour : fade(colour, 0.4))),
-        borderRadius: 4,
+        backgroundColor: colour,
       }],
     },
     options: {
@@ -138,17 +130,11 @@ function renderAnnual(canvasId, s, colour, noun) {
         tooltip: {
           callbacks: {
             label: (c) => `${fmtNumber.format(c.parsed.y)} ${noun} per counter/day`,
-            afterLabel: (c) => {
-              const y = years[c.dataIndex];
-              return y.monthsCovered < MIN_MONTHS ? `⚠ only ${y.monthsCovered} month(s) of data` : `${y.monthsCovered} months of data`;
-            },
+            afterLabel: (c) => `${years[c.dataIndex].monthsCovered} months of data`,
           },
         },
       },
-      scales: {
-        x: { ticks: { color: p.muted }, grid: { display: false } },
-        y: { beginAtZero: true, ticks: { color: p.muted }, grid: { color: p.grid } },
-      },
+      scales: { x: axes.x(), y: axes.y() },
     },
   });
 }
@@ -165,13 +151,12 @@ function seasonAverages(s) {
 }
 
 function renderSeason(cycle) {
-  const p = palette();
   const avg = seasonAverages(cycle);
   new Chart(document.getElementById("season-chart"), {
     type: "bar",
     data: {
       labels: MONTHS,
-      datasets: [{ label: "Average bikes per counter per day", data: avg, backgroundColor: p.cycle, borderRadius: 4 }],
+      datasets: [{ data: avg, backgroundColor: modeColours().cycle }],
     },
     options: {
       responsive: true,
@@ -180,21 +165,17 @@ function renderSeason(cycle) {
         legend: { display: false },
         tooltip: { callbacks: { label: (c) => `${fmtNumber.format(c.parsed.y)} bikes per counter/day` } },
       },
-      scales: {
-        x: { ticks: { color: p.muted }, grid: { display: false } },
-        y: { beginAtZero: true, ticks: { color: p.muted }, grid: { color: p.grid } },
-      },
+      scales: { x: axes.x(), y: axes.y() },
     },
   });
 }
 
 function renderStats(cycle, traffic) {
-  const p = palette();
   const baseYear = commonBaseline(cycle, traffic);
   const changeOf = (s) => {
-    const series = indexSeries(s, baseYear);
-    if (series.length < 2) return null;
-    return series[series.length - 1].index / 100 - 1;
+    const series_ = indexSeries(s, baseYear);
+    if (series_.length < 2) return null;
+    return series_[series_.length - 1].index / 100 - 1;
   };
 
   if (baseYear) {
@@ -232,7 +213,8 @@ function renderStats(cycle, traffic) {
 }
 
 function renderMap(cycle, traffic) {
-  const p = palette();
+  const t = tokens();
+  const mode = modeColours();
   const dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
   const map = L.map("map", { scrollWheelZoom: false }).setView([53.8, -1.55], 11);
   L.tileLayer(
@@ -246,13 +228,13 @@ function renderMap(cycle, traffic) {
   const add = (sites, colour, kind) => {
     for (const s of sites || []) {
       if (s.lat === null || s.lng === null) continue;
-      const marker = L.circleMarker([s.lat, s.lng], { radius: 6, weight: 1, color: "#fff", fillColor: colour, fillOpacity: 0.9 });
+      const marker = L.circleMarker([s.lat, s.lng], { radius: 6, weight: 2, color: t.paper, fillColor: colour, fillOpacity: 0.95 });
       marker.bindPopup(`<strong>${kind} counter</strong>${s.name ? `<br>${s.name}` : ""}`);
       marker.addTo(map);
       all.push([s.lat, s.lng]);
     }
   };
-  add(cycle.sites, p.cycle, "Cycle");
-  add(traffic.sites, p.traffic, "Traffic");
+  add(cycle.sites, mode.cycle, "Cycle");
+  add(traffic.sites, mode.traffic, "Traffic");
   if (all.length) map.fitBounds(all, { padding: [30, 30] });
 }
