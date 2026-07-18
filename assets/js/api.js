@@ -48,3 +48,7 @@ export function getCountsSummary(kind) {
 export function getFootfallSummary() {
   return getJson("/api/footfall/summary");
 }
+
+export function getCouncilTaxSummary() {
+  return getJson("/api/counciltax/summary");
+}

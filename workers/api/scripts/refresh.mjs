@@ -15,6 +15,7 @@ import { buildPotholes, mergePotholeRow } from "../src/potholes.js";
 import { buildCollisions, isRealCollisionRow } from "../src/collisions.js";
 import { accumulateCountRow, finaliseCounts, parseSites } from "../src/counts.js";
 import { accumulateFootRow, finaliseFootfall } from "../src/footfall.js";
+import { buildCouncilTax } from "../src/counciltax.js";
 import { parseCsvObjects } from "../src/csv.js";
 
 // Bump this when buildMonthlySummary's logic or output shape changes — it
@@ -37,6 +38,9 @@ const COUNTS_MAX_BYTES = 6_000_000;
 // And footfall (the messy 575-file one).
 const FOOTFALL_VERSION = "v1";
 const FOOTFALL_DATASET_ID = "2rlld";
+// And council tax (one small precepts file).
+const COUNCILTAX_VERSION = "v1";
+const COUNCILTAX_DATASET_ID = "24zz5";
 
 const {
   CLOUDFLARE_API_TOKEN,
@@ -524,6 +528,47 @@ async function refreshFootfall() {
   console.log("  wrote footfall:summary, footfall:hash");
 }
 
+// Council tax: one small precepts CSV covering every year since 1993. The
+// dataset also holds per-year "charges by band" and parish files, but the
+// precepts file alone carries the whole story; the rest are ignored.
+async function refreshCouncilTax() {
+  console.log(`Council tax: aggregating (version ${COUNCILTAX_VERSION})…`);
+  const dataset = await getDataset(env, COUNCILTAX_DATASET_ID);
+  const resources = listCsvResources(dataset).filter((r) =>
+    /major council tax precepts/i.test(r.title)
+  );
+  if (!resources.length) {
+    console.warn("  no precepts CSV found — skipping council tax");
+    return;
+  }
+  // Titles end "1993-2024", "1993-2026", … — the biggest end year is current.
+  const endYear = (r) => Number((r.title.match(/-\s*(\d{4})/) || [])[1] || 0);
+  resources.sort((a, b) => endYear(b) - endYear(a));
+  const resource = resources[0];
+
+  const fingerprint = `${COUNCILTAX_VERSION}:${resource.hash || `${resource.id}:${resource.size}`}`;
+  const lastFingerprint = await kvGet("counciltax:hash");
+  if (FORCE !== "1" && lastFingerprint === fingerprint) {
+    console.log("  ✓ unchanged, skipping");
+    return;
+  }
+
+  const rows = [];
+  const stream = await streamCsv(env, resource.url);
+  for await (const row of parseCsvObjects(stream)) rows.push(row);
+  const summary = buildCouncilTax(rows, resource);
+  console.log(
+    `  "${resource.title}": ${summary.years.length} years · band D ${summary.latest?.year} ` +
+    `£${summary.latest?.bandD.total} (${(summary.changeYoY * 100).toFixed(1)}% YoY)`
+  );
+
+  await kvBulkPut([
+    { key: "counciltax:summary", value: JSON.stringify(summary) },
+    { key: "counciltax:hash", value: fingerprint },
+  ]);
+  console.log("  wrote counciltax:summary, counciltax:hash");
+}
+
 function monthLabel(m) {
   const [y, mo] = m.split("-");
   const names = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -543,6 +588,7 @@ async function main() {
     ["cycle", () => refreshCounts("cycle")],
     ["traffic", () => refreshCounts("traffic")],
     ["footfall", () => refreshFootfall()],
+    ["counciltax", () => refreshCouncilTax()],
   ];
 
   let failed = false;
