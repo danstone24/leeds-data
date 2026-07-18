@@ -53,7 +53,7 @@ const COUNCILTAX_DATASET_ID = "24zz5";
 const HOUSING_VERSION = "v1";
 const HOUSING_DATASETS = { bids: "20jjj", stock: "2o1gn", tenanted: "ep6qr" };
 // And school places (four datasets, two phases).
-const SCHOOLS_VERSION = "v1";
+const SCHOOLS_VERSION = "v2";
 const SCHOOLS_DATASETS = {
   primaryPrefs: "24l45",
   primaryAlloc: "e6qpz",
@@ -107,6 +107,23 @@ async function kvBulkPut(entries) {
     if (!res.ok) throw new Error(`KV bulk PUT: ${res.status} ${await res.text()}`);
     const body = await res.json();
     if (!body.success) throw new Error(`KV bulk PUT reported failure: ${JSON.stringify(body.errors)}`);
+  }
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Datamillnorth 429s under burst load (it bit the schools dataset's ~30
+// small files). Retry with a growing pause before giving up on a file.
+async function streamCsvWithRetry(url, attempts = 3) {
+  for (let i = 1; ; i++) {
+    try {
+      return await streamCsv(env, url);
+    } catch (err) {
+      if (i >= attempts) throw err;
+      const pause = 3000 * i * i;
+      console.log(`    retrying in ${pause / 1000}s (${err.message})`);
+      await sleep(pause);
+    }
   }
 }
 
@@ -631,7 +648,7 @@ async function refreshHousing() {
   let ok = 0;
   for (const r of bidFiles) {
     try {
-      const stream = await streamCsv(env, r.url);
+      const stream = await streamCsvWithRetry(r.url);
       for await (const row of parseCsvObjects(stream)) accumulateBidRow(bidsAcc, row);
       ok++;
     } catch (err) {
@@ -639,6 +656,7 @@ async function refreshHousing() {
     }
   }
   console.log(`  bids: ${ok}/${bidFiles.length} files`);
+  const bidsIncomplete = ok < bidFiles.length;
 
   const stockRecords = [];
   for await (const rec of parseCsvStream(await streamCsv(env, stockFile.url))) stockRecords.push(rec);
@@ -659,11 +677,12 @@ async function refreshHousing() {
     `(${(summary.stock.change * 100).toFixed(1)}% since ${summary.stock.first?.fy})`
   );
 
-  await kvBulkPut([
-    { key: "housing:summary", value: JSON.stringify(summary) },
-    { key: "housing:hash", value: fingerprint },
-  ]);
-  console.log("  wrote housing:summary, housing:hash");
+  // On partial fetches, publish the summary but withhold the fingerprint so
+  // the next nightly run retries the missing files.
+  const writes = [{ key: "housing:summary", value: JSON.stringify(summary) }];
+  if (!bidsIncomplete) writes.push({ key: "housing:hash", value: fingerprint });
+  await kvBulkPut(writes);
+  console.log(`  wrote housing:summary${bidsIncomplete ? " (hash withheld — will retry files next run)" : ", housing:hash"}`);
 }
 
 // School places: one resource per entry year across four datasets. Files with
@@ -693,6 +712,7 @@ async function refreshSchools() {
     return;
   }
 
+  let fetchFailures = 0;
   async function loadYearMap(resources, parse, label) {
     const byYear = new Map();
     for (const r of resources) {
@@ -700,11 +720,12 @@ async function refreshSchools() {
       if (!year) continue;
       try {
         const records = [];
-        for await (const rec of parseCsvStream(await streamCsv(env, r.url))) records.push(rec);
+        for await (const rec of parseCsvStream(await streamCsvWithRetry(r.url))) records.push(rec);
         const rows = parse(records);
         if (rows) byYear.set(year, rows);
         else console.log(`  ${label} ${year}: schema not recognised, skipped ("${r.title}")`);
       } catch (err) {
+        fetchFailures++;
         console.warn(`  ${label} failed on "${r.title}": ${err.message}`);
       }
     }
@@ -731,11 +752,12 @@ async function refreshSchools() {
     );
   }
 
-  await kvBulkPut([
-    { key: "schools:summary", value: JSON.stringify(summary) },
-    { key: "schools:hash", value: fingerprint },
-  ]);
-  console.log("  wrote schools:summary, schools:hash");
+  // On partial fetches, publish the summary but withhold the fingerprint so
+  // the next nightly run retries the missing files.
+  const writes = [{ key: "schools:summary", value: JSON.stringify(summary) }];
+  if (fetchFailures === 0) writes.push({ key: "schools:hash", value: fingerprint });
+  await kvBulkPut(writes);
+  console.log(`  wrote schools:summary${fetchFailures ? " (hash withheld — will retry files next run)" : ", schools:hash"}`);
 }
 
 function monthLabel(m) {
