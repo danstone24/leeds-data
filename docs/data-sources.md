@@ -1,6 +1,6 @@
 # Data sources
 
-All data on this site comes from **[Datamillnorth.org](https://datamillnorth.org)**, Leeds City Council's open-data portal. It runs **DataPress** (not CKAN — the legacy CKAN endpoints are deprecated).
+Most data on this site comes from **[Datamillnorth.org](https://datamillnorth.org)**, Leeds City Council's open-data portal. It runs **DataPress** (not CKAN — the legacy CKAN endpoints are deprecated). Three topics have no usable Datamillnorth dataset and use national sources instead: **air quality** (DEFRA UK-AIR), **recycling & waste** (DEFRA statistics) and **planning** (MHCLG statistics + the PlanIt map layer) — see their entries below.
 
 ## The DataPress API
 

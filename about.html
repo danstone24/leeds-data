@@ -34,6 +34,9 @@
         <a href="/pages/collisions.html">Road safety</a>
         <a href="/pages/getting-around.html">Getting around</a>
         <a href="/pages/footfall.html">Footfall</a>
+        <a href="/pages/air-quality.html">Air quality</a>
+        <a href="/pages/recycling.html">Recycling</a>
+        <a href="/pages/planning.html">Planning</a>
         <a href="/about.html" aria-current="page">About</a>
       </div>
     </nav>
@@ -71,17 +74,23 @@
 
           <h2>Where the numbers come from</h2>
           <p>
-            <strong>Everything here comes straight from Leeds City Council's own
-            published data.</strong> We don't add our own estimates or opinions to
+            <strong>Almost everything here comes straight from Leeds City
+            Council's own published data.</strong> Three topics cover things the
+            council doesn't publish, so they use official national statistics
+            instead: air quality (DEFRA's monitoring network), recycling &amp;
+            waste (DEFRA's local-authority returns) and planning (MHCLG's
+            quarterly statistics, plus a map layer from the volunteer-run
+            <a href="https://www.planit.org.uk/" rel="noopener">PlanIt</a>).
+            We don't add our own estimates or opinions to
             the figures. Each topic page links back to the exact dataset it uses,
             and shows when it was last updated, so you can always check the source
             yourself. The data is published under the
             <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/" rel="noopener">Open Government Licence</a>.
           </p>
           <p>
-            The site checks for new data from the council every night, so the
-            charts stay current as fresh figures are published — usually monthly
-            or quarterly, depending on the dataset.
+            The site checks for new data every night, so the charts stay
+            current as fresh figures are published — usually monthly, quarterly
+            or annually, depending on the dataset.
           </p>
 
           <h2>How we handle the numbers</h2>
@@ -193,6 +202,51 @@
               nearly all Leeds secondaries are academies.
             </p>
           </li>
+          <li>
+            <h3><a href="/pages/air-quality.html">Air quality</a></h3>
+            <p>
+              The first page not built on council data: hourly readings from
+              DEFRA's national monitoring network, at the Leeds Centre station —
+              a "background" site, so kerbside air on busy roads will be worse.
+              Annual averages are only shown for years where the monitor ran at
+              least 75% of the time, following DEFRA convention, and the newest
+              readings are marked provisional until DEFRA checks them. Levels
+              are compared against both UK legal limits and the World Health
+              Organization's stricter 2021 health guidelines, which carry no
+              legal force.
+            </p>
+          </li>
+          <li>
+            <h3><a href="/pages/recycling.html">Recycling &amp; waste</a></h3>
+            <p>
+              This page's figures come from DEFRA, not Datamillnorth — there is
+              no live council dataset for this topic. Recycling, landfill and
+              residual-waste rates are DEFRA's annual local-authority waste
+              statistics, computed on a consistent national method from
+              councils' WasteDataFlow returns (published as a spreadsheet we
+              read directly); fly-tipping incidents and enforcement actions are
+              DEFRA's per-authority returns. Everything covers the council area
+              as a whole — nothing is published ward by ward. DEFRA's own
+              caveat, repeated on the page: fly-tipping counts partly reflect
+              how councils record and report incidents, not just how much is
+              actually dumped.
+            </p>
+          </li>
+          <li>
+            <h3><a href="/pages/planning.html">Planning applications</a></h3>
+            <p>
+              Built from two sources with different jobs. Every figure comes
+              from MHCLG's quarterly planning returns (the PS1/PS2 open-data
+              tables) — official statistics covering every English planning
+              authority, with Leeds picked out by its authority code. The map
+              and the large-applications list come from
+              <a href="https://www.planit.org.uk/" rel="noopener">PlanIt</a>,
+              a free, volunteer-run service that compiles applications from
+              council planning portals; it powers no statistics on the page,
+              and if it's ever unavailable the map simply drops out while
+              every chart keeps working.
+            </p>
+          </li>
         </ul>
 
         <div class="prose">
@@ -223,7 +277,8 @@
       <div class="container footer-inner">
         <p>
           Data from
-          <a href="https://datamillnorth.org" rel="noopener">Datamillnorth.org</a>,
+          <a href="https://datamillnorth.org" rel="noopener">Datamillnorth.org</a>
+          and UK government statistics (DEFRA, MHCLG),
           licensed under the
           <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/" rel="noopener">Open Government Licence</a>.
         </p>
