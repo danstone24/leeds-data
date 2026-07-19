@@ -5,6 +5,12 @@ yet** — this records what we can pull and how, so a future session can execute
 directly. Decision on record: frame figures against **both UK legal limits and
 WHO guidelines**.
 
+*Re-verified 2026-07-18: the `LEED_<year>.csv` URLs below still serve (HTTP
+200, ~1.4 MB/year, no key). Of the three "coming soon" topics this is the
+lowest-effort build — one clean source, fully scoped. Sibling plans:
+[recycling-waste-plan.md](recycling-waste-plan.md),
+[planning-plan.md](planning-plan.md).*
+
 ---
 
 ## Source
