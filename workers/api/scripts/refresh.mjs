@@ -1033,7 +1033,13 @@ async function refreshPlanning() {
 
     const planitGet = async (url) => {
       for (let attempt = 1; ; attempt++) {
-        const res = await fetch(url, { headers: { accept: "application/json" } });
+        // PlanIt 403s Node's default "node" user-agent — identify ourselves.
+        const res = await fetch(url, {
+          headers: {
+            accept: "application/json",
+            "user-agent": "leedsdata.co.uk nightly refresh (github.com/danstone24/leeds-data)",
+          },
+        });
         if (res.status === 429 && attempt < 4) {
           const wait = Number(res.headers.get("retry-after")) || 30 * attempt;
           console.log(`    PlanIt 429 — waiting ${wait}s`);
