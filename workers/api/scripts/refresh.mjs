@@ -83,10 +83,13 @@ const PLANNING_VERSION = "v1";
 const PLANNING_CONTENT_API =
   "https://www.gov.uk/api/content/government/statistical-data-sets/live-tables-on-planning-application-statistics";
 const PLANIT_PAGE_SIZE = 300;
-const PLANIT_MAX_REQUESTS = 60;
+// Stay well inside PlanIt's observed per-IP budget (~15–20 requests before a
+// long Retry-After) — a night that hits this cap just leaves the rest to the
+// cursor rotation.
+const PLANIT_MAX_REQUESTS = 12;
 const PLANIT_MAX_RECORDS = 15000;
-// Monthly windows fetched per nightly run once planning:appsrc is seeded —
-// small enough (~6 requests) to fit PlanIt's per-IP rate budget.
+// Monthly windows always fetched per nightly run (the freshest data); one
+// older cursor window on top rotates through the rest of the year.
 const PLANIT_RECENT_MONTHS = 2;
 
 const {
@@ -1030,15 +1033,17 @@ async function refreshPlanning() {
 
   // --- PlanIt map layer (independent of the stats) -------------------------
   //
-  // Incremental by design: PlanIt's per-IP rate budget (~15–20 requests per
-  // window, observed July 2026 — and GitHub Actions' shared egress IPs are
-  // often already drained) is nowhere near a full 12-month sweep. So the
-  // canonical last-12-months entry set lives in KV (planning:appsrc, keyed by
-  // application name); each night we fetch only the recent monthly windows
-  // (a handful of requests), merge fetched entries over the stored ones, age
-  // out anything past 12 months and rebuild the public planning:apps payload.
-  // The one-off 12-month bootstrap of planning:appsrc has to run from a
-  // residential IP (see docs/data-sources.md).
+  // Incremental by design: PlanIt's per-IP rate budget (~15–20 requests
+  // before a 12–20-minute Retry-After, observed July 2026 — and GitHub
+  // Actions' shared egress IPs are often already drained or blocked) is
+  // nowhere near a full 12-month sweep. So the canonical last-12-months
+  // entry set lives in KV (planning:appsrc, keyed by application name), and
+  // each night fetches only the two recent monthly windows PLUS one older
+  // "backfill cursor" window that cycles 2→11 across nights (~9 requests
+  // total). Full coverage assembles over ~10 nights, stale patches self-heal
+  // on the same rotation, fetched entries merge over the stored ones,
+  // anything past 12 months ages out, and the public planning:apps payload
+  // is rebuilt from the merged set.
   const end = new Date();
   const iso = (d) => d.toISOString().slice(0, 10);
   const monthEdge = (m) => new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() - m, end.getUTCDate()));
@@ -1049,10 +1054,12 @@ async function refreshPlanning() {
   } catch {
     stored = {};
   }
-  const bootstrap = !Object.keys(stored).length;
+  const cursorRaw = Number(await kvGet("planning:planitcursor"));
+  const cursor = cursorRaw >= PLANIT_RECENT_MONTHS && cursorRaw < 12 ? cursorRaw : PLANIT_RECENT_MONTHS;
 
   const records = [];
   let requests = 0;
+  let cursorDone = false;
   let planitFailure = null;
   try {
     const planitGet = async (url) => {
@@ -1079,8 +1086,8 @@ async function refreshPlanning() {
       }
     };
 
-    const months = bootstrap ? 12 : PLANIT_RECENT_MONTHS;
-    outer: for (let m = 0; m < months; m++) {
+    const windows = [...Array(PLANIT_RECENT_MONTHS).keys(), cursor];
+    outer: for (const m of windows) {
       const from = iso(monthEdge(m + 1));
       const to = iso(monthEdge(m));
       for (let page = 1; ; page++) {
@@ -1092,9 +1099,10 @@ async function refreshPlanning() {
         );
         records.push(...(body.records || []));
         if (!(body.records || []).length || (body.to ?? 0) + 1 >= (body.total ?? 0)) break;
-        await sleep(1500); // polite paging, per PlanIt's API guidance
+        await sleep(3000); // polite paging, per PlanIt's API guidance
       }
-      await sleep(1500);
+      if (m === cursor) cursorDone = true; // fetched all of the cursor window's pages
+      await sleep(3000);
     }
   } catch (err) {
     planitFailure = err;
@@ -1116,14 +1124,20 @@ async function refreshPlanning() {
     if (records.length > 0) {
       const apps = buildPlanitApps(entries, { window: { from: cutoff, to: iso(end) } });
       console.log(
-        `  PlanIt: ${requests} requests · ${records.length} fetched · ${apps.count} in window · ` +
+        `  PlanIt: ${requests} requests · ${records.length} fetched (cursor window ${cursor}` +
+        `${cursorDone ? "" : " incomplete"}) · ${apps.count} in window · ` +
         `${apps.geocoded} geocoded · ${apps.large.length} large` +
         (planitFailure ? ` (partial: ${planitFailure.message})` : "")
       );
-      await kvBulkPut([
+      const writes = [
         { key: "planning:appsrc", value: JSON.stringify(Object.fromEntries(entries.map((e) => [e.name, e]))) },
         { key: "planning:apps", value: JSON.stringify(apps) },
-      ]);
+      ];
+      if (cursorDone) {
+        const next = cursor + 1 < 12 ? cursor + 1 : PLANIT_RECENT_MONTHS;
+        writes.push({ key: "planning:planitcursor", value: String(next) });
+      }
+      await kvBulkPut(writes);
       console.log("  wrote planning:apps, planning:appsrc");
     } else {
       console.warn(

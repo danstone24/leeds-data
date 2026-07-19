@@ -310,18 +310,20 @@ nightly refresh.
     caps (60 requests / 15,000 records). Records are deduped by `name`,
     descriptions trimmed, coordinates bounded to Leeds.
   - **The per-IP budget is small (observed July 2026: ~15–20 requests before
-    a 429 with a 12–20-minute Retry-After), and GitHub Actions' shared
-    egress IPs are often already drained or blocked outright (403s /
-    connection failures).** So the map layer is **incremental**: the
-    canonical last-12-months entry set lives in `planning:appsrc` (keyed by
-    application name); each night only the last `PLANIT_RECENT_MONTHS`
-    windows are fetched (~6 requests), merged over the stored set, aged out
-    past 12 months, and the public payload rebuilt. Retry-Afters longer than
-    180 s abort the PlanIt fetch for the night (the job has a 15-minute
-    Actions timeout); partial fetches merge safely. The one-off 12-month
-    bootstrap of `planning:appsrc` must run from a residential IP
-    (`node scripts/…` locally + `wrangler kv key put`) — Actions never
-    completes it.
+    a 429 with a 12–20-minute Retry-After, then 403s for repeat offenders),
+    and GitHub Actions' shared egress IPs are often already drained or
+    blocked outright (403s / connection failures).** So the map layer is
+    **incremental**: the canonical last-12-months entry set lives in
+    `planning:appsrc` (keyed by application name); each night fetches the
+    two recent monthly windows plus one older "backfill cursor" window
+    (`planning:planitcursor`, cycling 2→11) — ~9 requests, capped at 12.
+    Fetched entries merge over the stored set, anything past 12 months ages
+    out, and the public payload is rebuilt. Full 12-month coverage
+    assembles over ~10 nights from nothing and self-heals on the same
+    rotation; partial fetches merge safely; Retry-Afters longer than 180 s
+    abort the PlanIt fetch for the night (the job has a 15-minute Actions
+    timeout). Don't try to bulk-sweep PlanIt from anywhere — that's how the
+    IP gets blocked.
   - PlanIt is a volunteer-run third-party scraper: it powers the map/table
     only, its failure keeps the last-good `planning:apps` blob, and the page
     says so. Attribution (name + link) is required courtesy.
