@@ -24,6 +24,7 @@ import {
   finaliseHousing,
 } from "../src/housing.js";
 import { parsePrefsRecords, parseAllocRecords, buildSchools } from "../src/schools.js";
+import { buildWaste } from "../src/waste.js";
 import { parseCsvObjects, parseCsvStream } from "../src/csv.js";
 
 // Bump this when buildMonthlySummary's logic or output shape changes — it
@@ -60,6 +61,14 @@ const SCHOOLS_DATASETS = {
   secondaryPrefs: "e619w",
   secondaryAlloc: "23ym1",
 };
+// And recycling & waste (two DEFRA sources — the first non-Datamillnorth
+// data alongside air quality). Source URLs change every release, so both
+// are re-discovered on each run.
+const WASTE_VERSION = "v1";
+const WASTE_CONTENT_API =
+  "https://www.gov.uk/api/content/government/statistics/local-authority-collected-waste-management-annual-results";
+const FLYTIP_DATASET_PAGE =
+  "https://www.data.gov.uk/dataset/1388104c-3599-4cd2-abb5-ca8ddeeb4c9c/fly-tipping_in_england_";
 
 const {
   CLOUDFLARE_API_TOKEN,
@@ -771,6 +780,104 @@ async function refreshSchools() {
   console.log(`  wrote schools:summary${fetchFailures ? " (hash withheld — will retry files next run)" : ", schools:hash"}`);
 }
 
+// Fetch a whole file with retries. Fingerprint = ETag (S3 sends one) or
+// content-length — enough to detect a re-publish.
+async function fetchBytesWithRetry(url, attempts = 3) {
+  for (let i = 1; ; i++) {
+    try {
+      const res = await fetch(url, { headers: { "user-agent": "leedsdata.co.uk nightly refresh" } });
+      if (!res.ok) throw new Error(`${res.status} for ${url}`);
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      const fingerprint =
+        res.headers.get("etag") || res.headers.get("content-length") || String(bytes.length);
+      return { bytes, fingerprint };
+    } catch (err) {
+      if (i >= attempts) throw err;
+      const pause = 3000 * i * i;
+      console.log(`    retrying in ${pause / 1000}s (${err.message})`);
+      await sleep(pause);
+    }
+  }
+}
+
+// Recycling & waste: DEFRA's LA-collected-waste ODS (recycling/landfill/
+// residual indicators) + the two per-authority fly-tipping CSVs. The ODS
+// media URL changes every March release, so it's discovered via the GOV.UK
+// content API; the fly-tipping links move too (statistics_YYYY path) and the
+// content API returns no attachments for that page, so they're scraped off
+// the data.gov.uk dataset page. If ANY of the three fetches fails, we bail
+// without writing summary or hash — the stored summary stays complete and
+// the withheld hash makes the next nightly run retry everything.
+async function refreshWaste() {
+  console.log(`Waste: aggregating (version ${WASTE_VERSION})…`);
+
+  const content = await (await fetch(WASTE_CONTENT_API)).json();
+  const attachment = (content.details?.attachments || []).find((a) =>
+    /^local authority collected waste generation annual results/i.test(a.title || "")
+  );
+  if (!attachment?.url) {
+    console.warn("  waste ODS attachment not found on GOV.UK — skipping waste");
+    return;
+  }
+
+  const page = await (await fetch(FLYTIP_DATASET_PAGE)).text();
+  const csvUrl = (kind) => {
+    const re = new RegExp(`https://[^"']*Local\\+authority\\+flytipping\\+${kind}[^"']*\\.csv`, "g");
+    // Several releases can be linked; the sort makes the newest
+    // (statistics_YYYY / year-range) win.
+    return [...new Set(page.match(re) || [])].sort().pop() || null;
+  };
+  const incidentsUrl = csvUrl("incidents");
+  const actionsUrl = csvUrl("actions");
+  if (!incidentsUrl || !actionsUrl) {
+    console.warn("  fly-tipping CSV links not found on data.gov.uk — skipping waste");
+    return;
+  }
+
+  let ods, incidents, actions;
+  try {
+    ods = await fetchBytesWithRetry(attachment.url);
+    incidents = await fetchBytesWithRetry(incidentsUrl);
+    actions = await fetchBytesWithRetry(actionsUrl);
+  } catch (err) {
+    console.warn(`  fetch failed (${err.message}) — skipping waste, hash withheld so next run retries`);
+    return;
+  }
+
+  const fingerprint =
+    `${WASTE_VERSION}:` + [ods, incidents, actions].map((f) => f.fingerprint).join(",");
+  const lastFingerprint = await kvGet("waste:hash");
+  if (FORCE !== "1" && lastFingerprint === fingerprint) {
+    console.log("  ✓ unchanged, skipping");
+    return;
+  }
+
+  const summary = await buildWaste({
+    odsBuffer: ods.bytes,
+    incidentsCsv: incidents.bytes,
+    actionsCsv: actions.bytes,
+    meta: { odsUrl: attachment.url },
+  });
+
+  const latest = summary.recycling.leeds.at(-1);
+  const england = summary.recycling.england.at(-1);
+  console.log(
+    `  recycling: ${summary.recycling.leeds.length} Leeds years · latest ${latest?.year} ` +
+    `${latest?.recycling}% (England ${england?.rate}%) · landfill ${latest?.landfill}% · ` +
+    `residual ${latest?.residualKg} kg/household`
+  );
+  console.log(
+    `  fly-tipping: ${summary.flyTipping.yearly.length} years · ` +
+    `${summary.flyTipping.latest?.year}: ${summary.flyTipping.latest?.incidents?.toLocaleString()} incidents`
+  );
+
+  await kvBulkPut([
+    { key: "waste:summary", value: JSON.stringify(summary) },
+    { key: "waste:hash", value: fingerprint },
+  ]);
+  console.log("  wrote waste:summary, waste:hash");
+}
+
 function monthLabel(m) {
   const [y, mo] = m.split("-");
   const names = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -793,6 +900,7 @@ async function main() {
     ["counciltax", () => refreshCouncilTax()],
     ["housing", () => refreshHousing()],
     ["schools", () => refreshSchools()],
+    ["waste", () => refreshWaste()],
   ];
 
   let failed = false;

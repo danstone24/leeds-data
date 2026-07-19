@@ -198,6 +198,63 @@ Two datasets with an **identical schema**, so they share one aggregator (`counts
 - **Worker route**: `GET /api/schools/summary`
 - **Chart**: [pages/schools.html](../pages/schools.html), [assets/js/charts/schools.js](../assets/js/charts/schools.js). Demand trend by phase, most-competitive council-run primaries, places offered vs filled, spare-places share.
 
+### Recycling & waste (two DEFRA sources, one page)
+
+The first topic with **no Datamillnorth data** (checked July 2026) — both
+sources are DEFRA, free, Crown copyright / OGL, fetched server-side by the
+nightly refresh.
+
+- **Datasets**:
+  - [Local authority collected waste management annual results](https://www.gov.uk/government/statistics/local-authority-collected-waste-management-annual-results)
+    — one ODS (~2 MB), re-published each March. Sheet `Table_3` "Selected
+    Waste Indicators": one row per authority per year, 2010-11 → latest
+    (recycling %, landfill %, residual kg/household, kg/person). `Table_3b`:
+    England household recycling rate back to 2000-01.
+  - [Fly-tipping statistics for England](https://www.gov.uk/government/statistics/fly-tipping-statistics-for-england)
+    — two per-authority CSVs on S3 (incidents + actions), 2012-13 → latest.
+- **URL discovery (required — links change every release)**:
+  - ODS: GOV.UK content API
+    (`https://www.gov.uk/api/content/government/statistics/local-authority-collected-waste-management-annual-results`)
+    → `details.attachments[]` → title starting "Local authority collected
+    waste generation annual results" → `url`.
+  - Fly-tipping: the content API returns no attachments for the ENV24 page,
+    so scrape the data.gov.uk dataset page
+    (`https://www.data.gov.uk/dataset/1388104c-3599-4cd2-abb5-ca8ddeeb4c9c/fly-tipping_in_england_`)
+    for `Local+authority+flytipping+(incidents|actions)+…\.csv`; the
+    `statistics_YYYY` path segment moves each year.
+- **Update cadence**: both annual (waste in March, fly-tipping in winter);
+  refreshed nightly anyway, hash-skipped on the files' ETag/content-length.
+- **Why we use them**: "do we recycle enough, and who's dumping on Leeds?" —
+  Leeds vs England recycling rate, the landfill→incineration shift after the
+  RERF opened (~2016), and fly-tipping scale/location/enforcement.
+- **Quirks** (handled in `waste.js`):
+  - The ODS is parsed with a hand-rolled zip reader (central directory +
+    `zlib.inflateRawSync`, no dependency; handles STORED and DEFLATE
+    entries). `node:zlib` is imported lazily so the Worker stays deployable.
+  - ODS cell runs are collapsed with `table:number-columns-repeated` (one
+    row ends with a 16,000-cell blank run) — repeats must be expanded or
+    every column misaligns; rows are capped at 40 columns.
+  - ODS values are strings: `34.7%`, numbers padded with `<text:s/>`, `-` /
+    `..` for missing. Year labels drift between `2019-20` and `2019/20`.
+  - The fly-tipping CSVs can carry stray NUL bytes and a BOM (they defeat
+    grep but parse fine once stripped at the byte level); the real header is
+    on line 2 after a title line, detected by content; one header cell is a
+    quoted multi-line value ("Chemical Drums, Oil, Fuel Incidents"); `:` is
+    a null marker; the `£` in cost headers arrives cp1252-mangled some years.
+  - **Leeds is matched by ONS code `E08000035` only** — it's "Leeds City
+    Council MBC" in the ODS and "Leeds" in the fly-tipping files.
+  - Fly-tipping incident counts partly reflect **reporting practice** (DEFRA's
+    own caveat — the 2012-13 → 2013-14 jump from ~3,000 to ~10,500 is largely
+    a recording change); the page says so.
+- **KV layout**: `waste:summary`, `waste:hash` (ETag/content-length
+  fingerprint across all three files; nothing is written if any fetch fails,
+  so the hash is withheld and the next run retries).
+- **Worker route**: `GET /api/waste/summary`
+- **Chart**: [pages/recycling.html](../pages/recycling.html),
+  [assets/js/charts/recycling.js](../assets/js/charts/recycling.js). Leeds vs
+  England recycling rate, landfill trend, fly-tipping trend, incidents by
+  land type, actions vs incidents.
+
 ## Template for new entries
 
 ### <topic name>

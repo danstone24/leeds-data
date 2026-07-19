@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Recycling &amp; waste — Leeds Data</title>
+    <meta
+      name="description"
+      content="How much of Leeds' household waste is recycled, how the city compares with the England average, where the rest goes, and the scale of fly-tipping."
+    />
+    <meta name="theme-color" content="#f9f6ef" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1b1a17" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f9f6ef'/%3E%3Crect y='88' width='100' height='6' fill='%231c1b18'/%3E%3Ctext x='50' y='72' font-family='Georgia,serif' font-weight='700' font-size='72' fill='%231c1b18' text-anchor='middle'%3EL%3C/text%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="/assets/css/style.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a href="/" class="brand">Leeds Data<span class="brand-mark">.</span></a>
+        <nav class="site-nav" aria-label="Primary">
+          <a href="/about.html">About</a>
+          <a href="https://datamillnorth.org" rel="noopener">Datamillnorth</a>
+        </nav>
+      </div>
+    </header>
+
+    <nav class="section-nav" aria-label="Topics">
+      <div class="container section-nav-inner">
+        <a href="/pages/spending.html">Spending</a>
+        <a href="/pages/council-tax.html">Council tax</a>
+        <a href="/pages/housing.html">Housing</a>
+        <a href="/pages/schools.html">Schools</a>
+        <a href="/pages/potholes.html">Potholes</a>
+        <a href="/pages/collisions.html">Road safety</a>
+        <a href="/pages/getting-around.html">Getting around</a>
+        <a href="/pages/footfall.html">Footfall</a>
+        <a href="/pages/air-quality.html">Air quality</a>
+        <a href="/pages/recycling.html" aria-current="page">Recycling</a>
+        <a href="/pages/planning.html">Planning</a>
+        <a href="/about.html">About</a>
+      </div>
+    </nav>
+
+    <main>
+      <section class="topic-hero">
+        <div class="container">
+          <p class="hero-kicker">Recycling &amp; waste</p>
+          <h1 class="hero-title">Do we recycle enough?</h1>
+          <p class="hero-lede" id="summary-line">
+            Loading recycling and fly-tipping figures from DEFRA&hellip;
+          </p>
+        </div>
+      </section>
+
+      <section class="container stat-grid" aria-label="Headline figures">
+        <div class="stat">
+          <span class="stat-label" id="stat-recycling-label">Leeds recycling rate, latest year</span>
+          <span class="stat-value" id="stat-recycling">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label" id="stat-england-label">England average, latest year</span>
+          <span class="stat-value" id="stat-england">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label" id="stat-flytip-label">Fly-tipping incidents, latest year</span>
+          <span class="stat-value" id="stat-flytip">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label" id="stat-residual-label">Residual waste per household</span>
+          <span class="stat-value" id="stat-residual">—</span>
+        </div>
+      </section>
+
+      <div class="container">
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>Leeds has never caught the England average</h2>
+            <p class="chart-caption" id="hero-caption">
+              The share of household waste sent for reuse, recycling or
+              composting each financial year. Leeds climbed through the early
+              2010s, then plateaued in the high thirties — several points
+              below the national average, which has itself been stuck around
+              42–44% for a decade.
+            </p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="chart-canvas-wrap">
+              <canvas id="hero-chart" aria-label="Household recycling rate per year, Leeds versus the England average"></canvas>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>Landfill is over — but not because of recycling</h2>
+            <p class="chart-caption" id="landfill-caption">
+              The share of Leeds' municipal waste sent to landfill. It
+              collapsed from two-thirds to almost nothing after the city's
+              Recycling and Energy Recovery Facility opened in 2016 —
+              non-recycled waste is now mostly burned for energy rather than
+              buried.
+            </p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="chart-canvas-wrap">
+              <canvas id="landfill-chart" aria-label="Percentage of Leeds municipal waste sent to landfill per year"></canvas>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>Fly-tipping: down from the peak, rising again</h2>
+            <p class="chart-caption" id="flytrend-caption">
+              Fly-tipping incidents recorded by Leeds City Council each year.
+              DEFRA cautions that these counts partly reflect how councils
+              record and report incidents, not just how much is actually
+              dumped — the leap after 2012-13 is largely a reporting change.
+            </p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="chart-canvas-wrap">
+              <canvas id="flytrend-chart" aria-label="Fly-tipping incidents recorded in Leeds per year"></canvas>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>Where the dumping happens</h2>
+            <p class="chart-caption" id="landtype-caption">
+              Incidents in the latest year by the type of land they were found
+              on. Most fly-tipping in Leeds lands on highways and council
+              land — the places the council itself must clear.
+            </p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="chart-canvas-wrap chart-tall">
+              <canvas id="landtype-chart" aria-label="Fly-tipping incidents in Leeds by land type, latest year"></canvas>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>Does anything happen to the dumpers?</h2>
+            <p class="chart-caption" id="enforcement-caption">
+              Enforcement actions — investigations, warning letters, notices
+              and fixed penalties — against incidents recorded. Leeds has
+              generally matched actions to incidents roughly one-for-one,
+              though most actions are investigations rather than penalties.
+            </p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="chart-canvas-wrap">
+              <canvas id="enforcement-chart" aria-label="Fly-tipping enforcement actions versus incidents in Leeds per year"></canvas>
+            </div>
+          </div>
+        </figure>
+      </div>
+
+      <section class="container source-block">
+        <p>
+          <strong>Sources:</strong>
+          <a href="https://www.gov.uk/government/statistics/local-authority-collected-waste-management-annual-results" rel="noopener">Local authority collected waste management</a> and
+          <a href="https://www.gov.uk/government/statistics/fly-tipping-statistics-for-england" rel="noopener">fly-tipping statistics for England</a>,
+          published by the Department for Environment, Food &amp; Rural
+          Affairs (DEFRA). Last updated <span id="source-updated">—</span>.
+        </p>
+        <p class="muted">
+          All figures are for the Leeds City Council area as a whole and by
+          financial year — DEFRA publishes nothing ward-by-ward, and
+          bin-collection performance isn't open data at all. Recycling rates
+          come from councils' WasteDataFlow returns, computed by DEFRA on a
+          consistent national method. DEFRA's own caveat on fly-tipping:
+          incident counts partly reflect each council's recording and
+          reporting practice, not just the amount actually dumped, so
+          year-to-year jumps can be administrative rather than real.
+        </p>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <p>
+          Data from
+          <a href="https://www.gov.uk/government/organisations/department-for-environment-food-rural-affairs" rel="noopener">DEFRA</a>,
+          licensed under the
+          <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/" rel="noopener">Open Government Licence</a>.
+        </p>
+        <p>
+          Built by Dan Stone. Source on
+          <a href="https://github.com/danstone24/leeds-data" rel="noopener">GitHub</a>.
+        </p>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script type="module" src="/assets/js/charts/recycling.js" defer></script>
+  </body>
+</html>
