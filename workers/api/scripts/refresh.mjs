@@ -26,6 +26,7 @@ import {
 import { parsePrefsRecords, parseAllocRecords, buildSchools } from "../src/schools.js";
 import { buildWaste } from "../src/waste.js";
 import { buildAirQuality } from "../src/air.js";
+import { buildPlanning, normalisePlanitApps } from "../src/planning.js";
 import { parseCsvObjects, parseCsvStream } from "../src/csv.js";
 
 // Bump this when buildMonthlySummary's logic or output shape changes — it
@@ -77,6 +78,13 @@ const WASTE_CONTENT_API =
   "https://www.gov.uk/api/content/government/statistics/local-authority-collected-waste-management-annual-results";
 const FLYTIP_DATASET_PAGE =
   "https://www.data.gov.uk/dataset/1388104c-3599-4cd2-abb5-ca8ddeeb4c9c/fly-tipping_in_england_";
+// And planning (two external sources: MHCLG PS1/PS2 stats + PlanIt map layer).
+const PLANNING_VERSION = "v1";
+const PLANNING_CONTENT_API =
+  "https://www.gov.uk/api/content/government/statistical-data-sets/live-tables-on-planning-application-statistics";
+const PLANIT_PAGE_SIZE = 300;
+const PLANIT_MAX_REQUESTS = 60;
+const PLANIT_MAX_RECORDS = 15000;
 
 const {
   CLOUDFLARE_API_TOKEN,
@@ -961,6 +969,118 @@ async function refreshWaste() {
   console.log("  wrote waste:summary, waste:hash");
 }
 
+// Planning: the site's first non-Datamillnorth topic. Stats come from MHCLG's
+// PS1/PS2 quarterly open-data CSVs (~12 MB + ~58 MB), discovered via the
+// GOV.UK content API because the media URLs change every publication — which
+// also makes the URL pair a free fingerprint (GOV.UK asset URLs are
+// immutable), so the 70 MB download is skipped when nothing changed.
+// The PlanIt map layer (last 12 months of Leeds applications) is fetched in
+// monthly windows so no single query approaches PlanIt's 5,000-result cap.
+// PlanIt is volunteer-run: its failure only logs a warning, keeps the
+// last-good planning:apps blob, and never sinks the stats refresh.
+async function refreshPlanning() {
+  console.log(`Planning: aggregating (version ${PLANNING_VERSION})…`);
+  let statsError = null;
+
+  // --- MHCLG PS1/PS2 statistics --------------------------------------------
+  try {
+    const contentRes = await fetch(PLANNING_CONTENT_API, { headers: { accept: "application/json" } });
+    if (!contentRes.ok) throw new Error(`GOV.UK content API ${contentRes.status}`);
+    const content = await contentRes.json();
+    const attachments = content.details?.attachments || [];
+    // Anchored on "District" — the same page carries County (CPS1/CPS2) files.
+    const findCsv = (re) => attachments.find((a) => re.test(a.title || ""))?.url;
+    const ps1Url = findCsv(/^District planning application statistics \(PS1\) - full dataset$/);
+    const ps2Url = findCsv(/^District planning application statistics \(PS2\) - full dataset$/);
+    if (!ps1Url || !ps2Url) throw new Error("PS1/PS2 full-dataset attachments not found");
+
+    const fingerprint = `${PLANNING_VERSION}:${ps1Url},${ps2Url}`;
+    const lastFingerprint = await kvGet("planning:hash");
+    if (FORCE !== "1" && lastFingerprint === fingerprint) {
+      console.log("  ✓ MHCLG stats unchanged, skipping");
+    } else {
+      const download = async (url, label) => {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`${label} fetch ${res.status}`);
+        return res.text();
+      };
+      const [ps1Csv, ps2Csv] = await Promise.all([download(ps1Url, "PS1"), download(ps2Url, "PS2")]);
+      const summary = await buildPlanning({ ps1Csv, ps2Csv, sources: { ps1: ps1Url, ps2: ps2Url } });
+      console.log(
+        `  ${summary.quarters.length} quarters ${summary.coverage.from} → ${summary.coverage.to} · ` +
+        `latest ${summary.tiles?.quarter}: ${summary.tiles?.decisions} decisions, ` +
+        `${Math.round((summary.tiles?.approvalShare ?? 0) * 100)}% approved`
+      );
+      // Summary and hash are written together, and only after a successful
+      // aggregate of BOTH files — a partial fetch throws above, keeps the
+      // last-good summary and withholds the hash so the next run retries.
+      await kvBulkPut([
+        { key: "planning:summary", value: JSON.stringify(summary) },
+        { key: "planning:hash", value: fingerprint },
+      ]);
+      console.log("  wrote planning:summary, planning:hash");
+    }
+  } catch (err) {
+    statsError = err;
+    console.warn(`  MHCLG stats failed (hash withheld — will retry next run): ${err.message}`);
+  }
+
+  // --- PlanIt map layer (independent of the stats) -------------------------
+  try {
+    const end = new Date();
+    const iso = (d) => d.toISOString().slice(0, 10);
+    const monthEdge = (m) => new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() - m, end.getUTCDate()));
+
+    const planitGet = async (url) => {
+      for (let attempt = 1; ; attempt++) {
+        const res = await fetch(url, { headers: { accept: "application/json" } });
+        if (res.status === 429 && attempt < 4) {
+          const wait = Number(res.headers.get("retry-after")) || 30 * attempt;
+          console.log(`    PlanIt 429 — waiting ${wait}s`);
+          await sleep(wait * 1000);
+          continue;
+        }
+        if (!res.ok) throw new Error(`PlanIt ${res.status}`);
+        return res.json();
+      }
+    };
+
+    const records = [];
+    let requests = 0;
+    outer: for (let m = 0; m < 12; m++) {
+      const from = iso(monthEdge(m + 1));
+      const to = iso(monthEdge(m));
+      for (let page = 1; ; page++) {
+        if (requests >= PLANIT_MAX_REQUESTS || records.length >= PLANIT_MAX_RECORDS) break outer;
+        requests++;
+        const body = await planitGet(
+          `https://www.planit.org.uk/api/applics/json?auth=Leeds&pg_sz=${PLANIT_PAGE_SIZE}` +
+          `&page=${page}&start_date=${from}&end_date=${to}`
+        );
+        records.push(...(body.records || []));
+        if (!(body.records || []).length || (body.to ?? 0) + 1 >= (body.total ?? 0)) break;
+        await sleep(1500); // polite paging, per PlanIt's API guidance
+      }
+      await sleep(1500);
+    }
+
+    // Boundary-day overlaps between monthly windows are deduped by `name`
+    // inside normalisePlanitApps.
+    const apps = normalisePlanitApps(records, { window: { from: iso(monthEdge(12)), to: iso(end) } });
+    console.log(`  PlanIt: ${requests} requests · ${apps.count} applications · ${apps.geocoded} geocoded · ${apps.large.length} large`);
+    if (apps.count > 0) {
+      await kvBulkPut([{ key: "planning:apps", value: JSON.stringify(apps) }]);
+      console.log("  wrote planning:apps");
+    } else {
+      console.warn("  PlanIt returned no records — keeping last-good planning:apps");
+    }
+  } catch (err) {
+    console.warn(`  PlanIt failed (map layer only — stats unaffected, keeping last-good planning:apps): ${err.message}`);
+  }
+
+  if (statsError) throw statsError; // surface in CI after PlanIt has had its go
+}
+
 function monthLabel(m) {
   const [y, mo] = m.split("-");
   const names = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -985,6 +1105,7 @@ async function main() {
     ["schools", () => refreshSchools()],
     ["air", () => refreshAirQuality()],
     ["waste", () => refreshWaste()],
+    ["planning", () => refreshPlanning()],
   ];
 
   let failed = false;

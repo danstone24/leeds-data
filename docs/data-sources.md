@@ -271,6 +271,57 @@ nightly refresh.
   England recycling rate, landfill trend, fly-tipping trend, incidents by
   land type, actions vs incidents.
 
+### Planning applications
+
+- **Datasets** (no usable Datamillnorth data — checked July 2026, `exkkr` is
+  a lone guidance file):
+  - [MHCLG live tables on planning application statistics](https://www.gov.uk/government/statistical-data-sets/live-tables-on-planning-application-statistics)
+    — PS1 full dataset (~12 MB: received/decided/withdrawn per LPA per
+    quarter) + PS2 full dataset (~58 MB: decisions by outcome, size and
+    speed). The unrounded open-data tables, not the rounded ODS live tables.
+  - [PlanIt](https://www.planit.org.uk/) ([API](https://www.planit.org.uk/api/))
+    — application-level map layer only, last 12 months of Leeds applications.
+- **URL discovery (required — media URLs change every publication)**: GOV.UK
+  content API (`https://www.gov.uk/api/content/government/statistical-data-sets/live-tables-on-planning-application-statistics`)
+  → `details.attachments[]` → titles anchored on
+  `District planning application statistics (PS1) - full dataset` (and PS2).
+  Anchoring matters: the same page carries County-level `CPS1`/`CPS2` files
+  whose titles contain "PS1"/"PS2". Because the URLs change per publication
+  and GOV.UK assets are immutable, the URL pair doubles as the refresh
+  fingerprint — no download needed to detect "unchanged".
+- **Update cadence**: quarterly (roughly Mar/Jun/Sep/Dec releases); PlanIt
+  scrapes the council portal daily-ish.
+- **Why we use them**: "does planning ever say no?" — decade-scale approval
+  rates, the majors-vs-minors refusal gap, decision speed, and a what's-near-
+  you map that Datamillnorth cannot provide.
+- **Quirks** (handled in `planning.js`):
+  - Preamble rows before the header vary by file (PS1 has 3, PS2 has 2 in
+    the March 2026 edition) — the header row is detected by content
+    (`Region, LPANM, LPACD, Quarter`), and every measure is looked up by
+    NAME, never position (~330 semicolon-named columns in PS2, drifting).
+  - Missing values are `..` → null; some editions carry stray NUL/BOM bytes
+    that defeat grep but parse fine once stripped.
+  - **Leeds = LPACD `E08000035`.** PS2 history reaches 1988 Q4, PS1 1996 Q2.
+  - "% decided in time" sums the excluding-PA and PA-only in-time measures
+    over their combined decision counts.
+  - PlanIt is rate-limited (429 + Retry-After, honoured with backoff), caps
+    responses at 5,000 results / 1,000 kB, and asks for polite paging — the
+    refresh pages month-by-month at `pg_sz=300` with 1.5 s pauses and hard
+    caps (60 requests / 15,000 records). Records are deduped by `name`,
+    descriptions trimmed, coordinates bounded to Leeds.
+  - PlanIt is a volunteer-run third-party scraper: it powers the map/table
+    only, its failure keeps the last-good `planning:apps` blob, and the page
+    says so. Attribution (name + link) is required courtesy.
+- **KV layout**: `planning:summary` (MHCLG stats), `planning:apps` (PlanIt
+  map payload — never overwritten with an empty result), `planning:hash`
+  (PS1+PS2 URL fingerprint; withheld if either fetch fails so the next run
+  retries).
+- **Worker routes**: `GET /api/planning/summary`, `GET /api/planning/apps`
+- **Chart**: [pages/planning.html](../pages/planning.html),
+  [assets/js/charts/planning.js](../assets/js/charts/planning.js). Decided vs
+  granted per quarter (1988→now), rolling-year approval rate by scheme size,
+  applications received (1996→now), PlanIt map + recent large applications.
+
 ## Template for new entries
 
 ### <topic name>

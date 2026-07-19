@@ -68,3 +68,11 @@ export function getWasteSummary() {
 export function getAirSummary() {
   return getJson("/api/air/summary");
 }
+
+export function getPlanningSummary() {
+  return getJson("/api/planning/summary");
+}
+
+export function getPlanningApps() {
+  return getJson("/api/planning/apps");
+}
