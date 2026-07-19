@@ -309,6 +309,19 @@ nightly refresh.
     refresh pages month-by-month at `pg_sz=300` with 1.5 s pauses and hard
     caps (60 requests / 15,000 records). Records are deduped by `name`,
     descriptions trimmed, coordinates bounded to Leeds.
+  - **The per-IP budget is small (observed July 2026: ~15–20 requests before
+    a 429 with a 12–20-minute Retry-After), and GitHub Actions' shared
+    egress IPs are often already drained or blocked outright (403s /
+    connection failures).** So the map layer is **incremental**: the
+    canonical last-12-months entry set lives in `planning:appsrc` (keyed by
+    application name); each night only the last `PLANIT_RECENT_MONTHS`
+    windows are fetched (~6 requests), merged over the stored set, aged out
+    past 12 months, and the public payload rebuilt. Retry-Afters longer than
+    180 s abort the PlanIt fetch for the night (the job has a 15-minute
+    Actions timeout); partial fetches merge safely. The one-off 12-month
+    bootstrap of `planning:appsrc` must run from a residential IP
+    (`node scripts/…` locally + `wrangler kv key put`) — Actions never
+    completes it.
   - PlanIt is a volunteer-run third-party scraper: it powers the map/table
     only, its failure keeps the last-good `planning:apps` blob, and the page
     says so. Attribution (name + link) is required courtesy.

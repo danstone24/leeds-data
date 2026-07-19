@@ -26,7 +26,7 @@ import {
 import { parsePrefsRecords, parseAllocRecords, buildSchools } from "../src/schools.js";
 import { buildWaste } from "../src/waste.js";
 import { buildAirQuality } from "../src/air.js";
-import { buildPlanning, normalisePlanitApps } from "../src/planning.js";
+import { buildPlanning, planitEntry, buildPlanitApps } from "../src/planning.js";
 import { parseCsvObjects, parseCsvStream } from "../src/csv.js";
 
 // Bump this when buildMonthlySummary's logic or output shape changes — it
@@ -85,6 +85,9 @@ const PLANNING_CONTENT_API =
 const PLANIT_PAGE_SIZE = 300;
 const PLANIT_MAX_REQUESTS = 60;
 const PLANIT_MAX_RECORDS = 15000;
+// Monthly windows fetched per nightly run once planning:appsrc is seeded —
+// small enough (~6 requests) to fit PlanIt's per-IP rate budget.
+const PLANIT_RECENT_MONTHS = 2;
 
 const {
   CLOUDFLARE_API_TOKEN,
@@ -1026,11 +1029,32 @@ async function refreshPlanning() {
   }
 
   // --- PlanIt map layer (independent of the stats) -------------------------
-  try {
-    const end = new Date();
-    const iso = (d) => d.toISOString().slice(0, 10);
-    const monthEdge = (m) => new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() - m, end.getUTCDate()));
+  //
+  // Incremental by design: PlanIt's per-IP rate budget (~15–20 requests per
+  // window, observed July 2026 — and GitHub Actions' shared egress IPs are
+  // often already drained) is nowhere near a full 12-month sweep. So the
+  // canonical last-12-months entry set lives in KV (planning:appsrc, keyed by
+  // application name); each night we fetch only the recent monthly windows
+  // (a handful of requests), merge fetched entries over the stored ones, age
+  // out anything past 12 months and rebuild the public planning:apps payload.
+  // The one-off 12-month bootstrap of planning:appsrc has to run from a
+  // residential IP (see docs/data-sources.md).
+  const end = new Date();
+  const iso = (d) => d.toISOString().slice(0, 10);
+  const monthEdge = (m) => new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() - m, end.getUTCDate()));
 
+  let stored = {};
+  try {
+    stored = JSON.parse((await kvGet("planning:appsrc")) || "{}");
+  } catch {
+    stored = {};
+  }
+  const bootstrap = !Object.keys(stored).length;
+
+  const records = [];
+  let requests = 0;
+  let planitFailure = null;
+  try {
     const planitGet = async (url) => {
       for (let attempt = 1; ; attempt++) {
         // PlanIt 403s Node's default "node" user-agent — identify ourselves.
@@ -1043,8 +1067,8 @@ async function refreshPlanning() {
         if (res.status === 429 && attempt < 4) {
           const wait = Number(res.headers.get("retry-after")) || 30 * attempt;
           // The job runs under a 15-minute Actions timeout; a long Retry-After
-          // means "not tonight" — keep the last-good map and let the nightly
-          // run self-heal rather than sleeping the workflow to death.
+          // means "not tonight" — merge whatever we already fetched and let
+          // the next run continue rather than sleeping the workflow to death.
           if (wait > 180) throw new Error(`PlanIt rate-limited (retry-after ${wait}s) — giving up this run`);
           console.log(`    PlanIt 429 — waiting ${wait}s`);
           await sleep(wait * 1000);
@@ -1055,9 +1079,8 @@ async function refreshPlanning() {
       }
     };
 
-    const records = [];
-    let requests = 0;
-    outer: for (let m = 0; m < 12; m++) {
+    const months = bootstrap ? 12 : PLANIT_RECENT_MONTHS;
+    outer: for (let m = 0; m < months; m++) {
       const from = iso(monthEdge(m + 1));
       const to = iso(monthEdge(m));
       for (let page = 1; ; page++) {
@@ -1073,19 +1096,43 @@ async function refreshPlanning() {
       }
       await sleep(1500);
     }
+  } catch (err) {
+    planitFailure = err;
+  }
 
-    // Boundary-day overlaps between monthly windows are deduped by `name`
-    // inside normalisePlanitApps.
-    const apps = normalisePlanitApps(records, { window: { from: iso(monthEdge(12)), to: iso(end) } });
-    console.log(`  PlanIt: ${requests} requests · ${apps.count} applications · ${apps.geocoded} geocoded · ${apps.large.length} large`);
-    if (apps.count > 0) {
-      await kvBulkPut([{ key: "planning:apps", value: JSON.stringify(apps) }]);
-      console.log("  wrote planning:apps");
+  try {
+    // Merge fetched entries over the stored set — partial fetches are safe,
+    // every fetched record is current. Then age out anything whose most
+    // recent date is past the 12-month window.
+    for (const r of records) {
+      const entry = planitEntry(r);
+      if (entry) stored[entry.name] = entry;
+    }
+    const cutoff = iso(monthEdge(12));
+    const entries = Object.values(stored).filter(
+      (e) => (e.decided || e.start || "9999") >= cutoff
+    );
+
+    if (records.length > 0) {
+      const apps = buildPlanitApps(entries, { window: { from: cutoff, to: iso(end) } });
+      console.log(
+        `  PlanIt: ${requests} requests · ${records.length} fetched · ${apps.count} in window · ` +
+        `${apps.geocoded} geocoded · ${apps.large.length} large` +
+        (planitFailure ? ` (partial: ${planitFailure.message})` : "")
+      );
+      await kvBulkPut([
+        { key: "planning:appsrc", value: JSON.stringify(Object.fromEntries(entries.map((e) => [e.name, e]))) },
+        { key: "planning:apps", value: JSON.stringify(apps) },
+      ]);
+      console.log("  wrote planning:apps, planning:appsrc");
     } else {
-      console.warn("  PlanIt returned no records — keeping last-good planning:apps");
+      console.warn(
+        `  PlanIt returned nothing usable — keeping last-good planning:apps` +
+        (planitFailure ? ` (${planitFailure.message})` : "")
+      );
     }
   } catch (err) {
-    console.warn(`  PlanIt failed (map layer only — stats unaffected, keeping last-good planning:apps): ${err.message}`);
+    console.warn(`  PlanIt merge failed (map layer only — stats unaffected, keeping last-good planning:apps): ${err.message}`);
   }
 
   if (statsError) throw statsError; // surface in CI after PlanIt has had its go

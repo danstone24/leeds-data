@@ -211,40 +211,46 @@ function trimDescription(s) {
   return t.length > DESC_MAX ? `${t.slice(0, DESC_MAX - 1).trimEnd()}…` : t;
 }
 
-export function normalisePlanitApps(records, meta = {}) {
-  const seen = new Set();
+// One raw PlanIt record → canonical entry (or null when it has no name).
+// Entries are what the refresh script persists between runs (keyed by name in
+// planning:appsrc) so nightly fetches can be small and merged incrementally —
+// PlanIt's per-IP rate budget is nowhere near a full 12-month sweep.
+export function planitEntry(r) {
+  const name = clean(r?.name);
+  if (!name) return null;
+  const entry = {
+    name,
+    description: trimDescription(r.description),
+    address: clean(r.address),
+    state: clean(r.app_state) || "Other",
+    type: clean(r.app_type) || "Other",
+    size: clean(r.app_size) || null,
+    start: clean(r.start_date) || null,
+    decided: clean(r.decided_date) || null,
+    url: clean(r.url) || clean(r.link) || null,
+  };
+  const coords = r.location?.type === "Point" ? r.location.coordinates : null;
+  if (coords) {
+    const [lon, lat] = coords.map(Number);
+    if (Number.isFinite(lat) && Number.isFinite(lon) && IN_LEEDS(lat, lon)) {
+      entry.lat = round5(lat);
+      entry.lon = round5(lon);
+    }
+  }
+  return entry;
+}
+
+// Canonical entries → the public map payload served at /api/planning/apps.
+export function buildPlanitApps(entries, meta = {}) {
   const apps = [];
   const large = [];
-  let total = 0;
 
-  for (const r of records || []) {
-    const name = clean(r.name);
-    if (!name || seen.has(name)) continue;
-    seen.add(name);
-    total++;
-
-    const link = clean(r.url) || clean(r.link);
-    const entry = {
-      name,
-      description: trimDescription(r.description),
-      address: clean(r.address),
-      state: clean(r.app_state) || "Other",
-      type: clean(r.app_type) || "Other",
-      size: clean(r.app_size) || null,
-      start: clean(r.start_date) || null,
-      decided: clean(r.decided_date) || null,
-      url: link || null,
-    };
-
+  for (const entry of entries || []) {
     if (entry.size === "Large") large.push(entry);
-
-    const coords = r.location?.type === "Point" ? r.location.coordinates : null;
-    if (!coords) continue;
-    const [lon, lat] = coords.map(Number);
-    if (!Number.isFinite(lat) || !Number.isFinite(lon) || !IN_LEEDS(lat, lon)) continue;
+    if (entry.lat === undefined) continue;
     apps.push([
-      round5(lat),
-      round5(lon),
+      entry.lat,
+      entry.lon,
       entry.state,
       entry.type,
       entry.size,
@@ -258,14 +264,23 @@ export function normalisePlanitApps(records, meta = {}) {
   large.sort((a, b) => String(b.start || "").localeCompare(String(a.start || "")));
 
   return {
-    count: total,
+    count: (entries || []).length,
     geocoded: apps.length,
     apps,
-    large: large.slice(0, LARGE_MAX),
+    large: large.slice(0, LARGE_MAX).map(({ lat, lon, ...rest }) => rest),
     window: meta.window || null,
     source: PLANIT_SOURCE,
     updated: new Date().toISOString(),
   };
+}
+
+export function normalisePlanitApps(records, meta = {}) {
+  const byName = new Map();
+  for (const r of records || []) {
+    const entry = planitEntry(r);
+    if (entry && !byName.has(entry.name)) byName.set(entry.name, entry);
+  }
+  return buildPlanitApps([...byName.values()], meta);
 }
 
 // Worker route handlers (KV read only) ---------------------------------------
