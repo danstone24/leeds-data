@@ -1042,6 +1042,10 @@ async function refreshPlanning() {
         });
         if (res.status === 429 && attempt < 4) {
           const wait = Number(res.headers.get("retry-after")) || 30 * attempt;
+          // The job runs under a 15-minute Actions timeout; a long Retry-After
+          // means "not tonight" — keep the last-good map and let the nightly
+          // run self-heal rather than sleeping the workflow to death.
+          if (wait > 180) throw new Error(`PlanIt rate-limited (retry-after ${wait}s) — giving up this run`);
           console.log(`    PlanIt 429 — waiting ${wait}s`);
           await sleep(wait * 1000);
           continue;
