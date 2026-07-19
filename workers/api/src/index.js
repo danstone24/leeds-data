@@ -22,6 +22,7 @@
 //   GET /api/housing/summary
 //   GET /api/schools/summary
 //   GET /api/waste/summary
+//   GET /api/air/summary
 
 import {
   handleSummary,
@@ -37,6 +38,7 @@ import { handleCouncilTaxSummary } from "./counciltax.js";
 import { handleHousingSummary } from "./housing.js";
 import { handleSchoolsSummary } from "./schools.js";
 import { handleWasteSummary } from "./waste.js";
+import { handleAirSummary } from "./air.js";
 
 const CORS_HEADERS = {
   "access-control-allow-origin": "*",
@@ -158,6 +160,11 @@ export default {
     if (path === "/waste/summary") {
       const data = await handleWasteSummary(env);
       return data ? json(data) : json({ error: "No waste data yet" }, { status: 503 });
+    }
+
+    if (path === "/air/summary") {
+      const data = await handleAirSummary(env);
+      return data ? json(data) : json({ error: "No air quality data yet" }, { status: 503 });
     }
 
     const txnMatch = path.match(/^\/spending\/transactions\/(\d{4}-\d{2})$/);

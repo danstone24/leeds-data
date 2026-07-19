@@ -198,6 +198,22 @@ Two datasets with an **identical schema**, so they share one aggregator (`counts
 - **Worker route**: `GET /api/schools/summary`
 - **Chart**: [pages/schools.html](../pages/schools.html), [assets/js/charts/schools.js](../assets/js/charts/schools.js). Demand trend by phase, most-competitive council-run primaries, places offered vs filled, spare-places share.
 
+### Air quality (DEFRA UK-AIR — not Datamillnorth)
+
+- **Dataset**: [Leeds Centre monitoring station](https://uk-air.defra.gov.uk/data/flat_files?site_id=LEED) (`site_id=LEED`, AURN urban background, DEFRA UK-AIR)
+- **Resources**: one CSV per year, direct URL `https://uk-air.defra.gov.uk/datastore/data_files/site_data/LEED_<YEAR>.csv?v=1` (~1.4 MB, ~8,760 hourly rows). No API key, no auth. 2007 onwards used (files exist back to at least 2006; v1 scope starts 2007). Current-year file updates daily, ~2 days behind.
+- **Update cadence**: nightly refresh; ratified years never change, so the fingerprint is per-year ETag/Last-Modified from HEAD requests.
+- **Why we use it**: the only long-run, hourly, quality-assured air pollution record for central Leeds — NO₂, PM2.5, PM10, O₃ (plus CO/SO₂/NOₓ we don't chart).
+- **Schema**: ~4 preamble lines, then a header starting `Date,time`, then a near-blank spacer line. Each pollutant is a value/status/unit column triplet. Dates `DD-MM-YYYY`, times hour-ending `01:00`–`24:00` GMT.
+- **Quirks**:
+  - Column names contain HTML (`PM<sub>2.5</sub> …`) in most years but not 2008 — strip tags and match by name; the column set drifts (2008 has 12 pollutant channels incl. volatile/non-volatile PM, 2024 has 8).
+  - Blank value = monitor down; every mean carries a data-capture %. Annual means below 75% capture are withheld (nulled) per DEFRA convention — e.g. 2013 PM and pre-2009 PM2.5.
+  - Status `R` = ratified, `P`/`P*` = provisional (the newest year or two); provisional years are flagged in the summary and drawn as open points.
+  - Small negative hourly PM values occur in TEOM-FDMS-era files (2009–2016) and are kept in means, as DEFRA does.
+- **KV layout**: `air:summary`, `air:hash`.
+- **Worker route**: `GET /api/air/summary`
+- **Chart**: [pages/air-quality.html](../pages/air-quality.html), [assets/js/charts/air-quality.js](../assets/js/charts/air-quality.js). Annual means vs UK/WHO limits, NO₂ by hour, seasonal cycle, PM10 days over 50 µg/m³.
+
 ### Recycling & waste (two DEFRA sources, one page)
 
 The first topic with **no Datamillnorth data** (checked July 2026) — both

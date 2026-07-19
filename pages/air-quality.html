@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Air quality — Leeds Data</title>
+    <meta
+      name="description"
+      content="Is the air in Leeds getting cleaner? Annual pollution levels at the Leeds Centre monitoring station measured against UK legal limits and WHO health guidelines."
+    />
+    <meta name="theme-color" content="#f9f6ef" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1b1a17" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f9f6ef'/%3E%3Crect y='88' width='100' height='6' fill='%231c1b18'/%3E%3Ctext x='50' y='72' font-family='Georgia,serif' font-weight='700' font-size='72' fill='%231c1b18' text-anchor='middle'%3EL%3C/text%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="/assets/css/style.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a href="/" class="brand">Leeds Data<span class="brand-mark">.</span></a>
+        <nav class="site-nav" aria-label="Primary">
+          <a href="/about.html">About</a>
+          <a href="https://datamillnorth.org" rel="noopener">Datamillnorth</a>
+        </nav>
+      </div>
+    </header>
+
+    <nav class="section-nav" aria-label="Topics">
+      <div class="container section-nav-inner">
+        <a href="/pages/spending.html">Spending</a>
+        <a href="/pages/council-tax.html">Council tax</a>
+        <a href="/pages/housing.html">Housing</a>
+        <a href="/pages/schools.html">Schools</a>
+        <a href="/pages/potholes.html">Potholes</a>
+        <a href="/pages/collisions.html">Road safety</a>
+        <a href="/pages/getting-around.html">Getting around</a>
+        <a href="/pages/footfall.html">Footfall</a>
+        <a href="/pages/air-quality.html" aria-current="page">Air quality</a>
+        <a href="/pages/recycling.html">Recycling</a>
+        <a href="/pages/planning.html">Planning</a>
+        <a href="/about.html">About</a>
+      </div>
+    </nav>
+
+    <main>
+      <section class="topic-hero">
+        <div class="container">
+          <p class="hero-kicker">Air quality</p>
+          <h1 class="hero-title">Is the air getting cleaner?</h1>
+          <p class="hero-lede" id="summary-line">
+            Loading hourly readings from the Leeds Centre monitoring station&hellip;
+          </p>
+        </div>
+      </section>
+
+      <section class="container stat-grid" aria-label="Headline figures">
+        <div class="stat">
+          <span class="stat-label">Nitrogen dioxide, <span id="no2-year">latest</span> average</span>
+          <span class="stat-value" id="stat-no2">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Fine particles (PM2.5) vs the WHO guideline</span>
+          <span class="stat-value" id="stat-pm25">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Change in nitrogen dioxide <span id="change-window">over the record</span></span>
+          <span class="stat-value" id="stat-change">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Years within every UK legal limit</span>
+          <span class="stat-value stat-value-sm" id="stat-legal">—</span>
+        </div>
+      </section>
+
+      <div class="container">
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>Legal air is not the same as healthy air</h2>
+            <p class="chart-caption" id="hero-caption">
+              Average concentration each year at Leeds Centre, in µg/m³.
+              Dashed lines are UK legal limits; dotted lines are the World
+              Health Organization's 2021 health guidelines — the level below
+              which no meaningful harm is expected. Years where the monitor
+              ran less than 75% of the time are left out.
+            </p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="chart-canvas-wrap">
+              <canvas id="hero-chart" aria-label="Annual mean nitrogen dioxide, PM2.5 and PM10 at Leeds Centre against UK legal limits and WHO guidelines"></canvas>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>Pollution keeps office hours</h2>
+            <p class="chart-caption" id="rhythm-caption">
+              Nitrogen dioxide by time of day, averaged over recent years.
+              The two peaks are the morning and evening rush hours — most of
+              this pollutant comes out of exhaust pipes, which is why it
+              tracks the traffic on the getting-around page.
+            </p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="chart-canvas-wrap">
+              <canvas id="rhythm-chart" aria-label="Average nitrogen dioxide by hour of day at Leeds Centre"></canvas>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>Winter smog, summer ozone</h2>
+            <p class="chart-caption" id="seasonal-caption">
+              Average concentration by month of the year. Nitrogen dioxide
+              and particles build up in cold, still winter air; ozone is the
+              opposite — it forms in sunlight, so it peaks in spring and
+              summer.
+            </p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="chart-canvas-wrap">
+              <canvas id="seasonal-chart" aria-label="Average monthly concentrations of nitrogen dioxide, PM2.5, PM10 and ozone at Leeds Centre"></canvas>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>Bad-air days are getting rarer</h2>
+            <p class="chart-caption" id="days-caption">
+              Days each year when coarse-particle (PM10) pollution averaged
+              more than 50 µg/m³ — the UK's daily limit, which the law allows
+              on up to 35 days a year. Leeds Centre has stayed far inside
+              that allowance.
+            </p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="chart-canvas-wrap">
+              <canvas id="days-chart" aria-label="Days per year over the UK daily PM10 limit at Leeds Centre, against the 35-day allowance"></canvas>
+            </div>
+          </div>
+        </figure>
+      </div>
+
+      <section class="container source-block">
+        <p>
+          <strong>Source:</strong>
+          <a href="https://uk-air.defra.gov.uk/data/flat_files?site_id=LEED" rel="noopener">DEFRA UK-AIR</a>
+          hourly measurements from the
+          <a href="https://uk-air.defra.gov.uk/networks/site-info?site_id=LEED" rel="noopener">Leeds Centre monitoring station</a>
+          (national Automatic Urban and Rural Network, urban background site).
+          Readings to <span id="source-coverage">—</span>.
+          Last updated <span id="source-updated">—</span>.
+        </p>
+        <p class="muted">
+          Leeds Centre measures the general "background" air of the city
+          centre, away from the kerbside — air next to busy roads is worse
+          than these figures. Annual averages are only shown for years where
+          the monitor captured at least 75% of hourly readings, following
+          DEFRA convention. The most recent readings are provisional until
+          DEFRA ratifies them, and the current year is excluded from annual
+          figures until enough of it has been measured. UK legal limits come
+          from the Air Quality Standards Regulations 2010; health guidelines
+          are the World Health Organization's 2021 global air quality
+          guidelines, which carry no legal force.
+        </p>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <p>
+          Data from
+          <a href="https://uk-air.defra.gov.uk" rel="noopener">DEFRA UK-AIR</a>,
+          licensed under the
+          <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/" rel="noopener">Open Government Licence</a>.
+        </p>
+        <p>
+          Built by Dan Stone. Source on
+          <a href="https://github.com/danstone24/leeds-data" rel="noopener">GitHub</a>.
+        </p>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script type="module" src="/assets/js/charts/air-quality.js" defer></script>
+  </body>
+</html>

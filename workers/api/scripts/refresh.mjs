@@ -25,6 +25,7 @@ import {
 } from "../src/housing.js";
 import { parsePrefsRecords, parseAllocRecords, buildSchools } from "../src/schools.js";
 import { buildWaste } from "../src/waste.js";
+import { buildAirQuality } from "../src/air.js";
 import { parseCsvObjects, parseCsvStream } from "../src/csv.js";
 
 // Bump this when buildMonthlySummary's logic or output shape changes — it
@@ -61,6 +62,13 @@ const SCHOOLS_DATASETS = {
   secondaryPrefs: "e619w",
   secondaryAlloc: "23ym1",
 };
+// And air quality (DEFRA UK-AIR, Leeds Centre — the first non-Datamillnorth
+// source: plain fetch, one CSV per year, no API key).
+const AIR_VERSION = "v1";
+const AIR_FIRST_YEAR = 2007;
+const AIR_SITE_ID = "LEED";
+const airYearUrl = (year) =>
+  `https://uk-air.defra.gov.uk/datastore/data_files/site_data/${AIR_SITE_ID}_${year}.csv?v=1`;
 // And recycling & waste (two DEFRA sources — the first non-Datamillnorth
 // data alongside air quality). Source URLs change every release, so both
 // are re-discovered on each run.
@@ -780,6 +788,81 @@ async function refreshSchools() {
   console.log(`  wrote schools:summary${fetchFailures ? " (hash withheld — will retry files next run)" : ", schools:hash"}`);
 }
 
+// Air quality: DEFRA UK-AIR hourly CSVs for Leeds Centre, one per year,
+// fetched directly (not a Datamillnorth resource). Ratified years never
+// change, so the fingerprint is built from each year's ETag/Last-Modified
+// via cheap HEAD requests; any header change (or a new year appearing)
+// triggers a full re-aggregation, since the summary spans every year.
+async function refreshAirQuality() {
+  console.log(`Air quality: aggregating (version ${AIR_VERSION})…`);
+
+  const currentYear = new Date().getUTCFullYear();
+  const years = [];
+  for (let y = AIR_FIRST_YEAR; y <= currentYear; y++) years.push(y);
+
+  let headFailures = 0;
+  const prints = await pMap(years, Number(CONCURRENCY), async (year) => {
+    try {
+      const res = await fetch(airYearUrl(year), { method: "HEAD" });
+      if (!res.ok) return `${year}:absent`; // next year's file before it exists
+      const sig =
+        (res.headers.get("etag") || "") +
+        ":" +
+        (res.headers.get("last-modified") || "") +
+        ":" +
+        (res.headers.get("content-length") || "");
+      // No usable headers → can't prove it's unchanged; force a refresh.
+      return sig === "::" ? `${year}:unknown-${Date.now()}` : `${year}:${sig}`;
+    } catch (err) {
+      headFailures++;
+      console.warn(`  HEAD failed for ${year}: ${err.message}`);
+      return `${year}:error`;
+    }
+  });
+
+  const fingerprint = `${AIR_VERSION}:` + prints.join(",");
+  const lastFingerprint = await kvGet("air:hash");
+  if (FORCE !== "1" && headFailures === 0 && lastFingerprint === fingerprint) {
+    console.log("  ✓ unchanged, skipping");
+    return;
+  }
+
+  let fetchFailures = 0;
+  const yearFiles = [];
+  for (const year of years) {
+    try {
+      const res = await fetch(airYearUrl(year));
+      if (res.status === 404) continue; // year not published (yet)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      yearFiles.push({ year, text: await res.text() });
+    } catch (err) {
+      fetchFailures++;
+      console.warn(`  failed on ${year}: ${err.message}`);
+    }
+  }
+  if (!yearFiles.length) {
+    console.warn("  no year files fetched — skipping air quality");
+    return;
+  }
+
+  const summary = await buildAirQuality(yearFiles);
+  const latest = summary.years.filter((y) => y.no2.mean !== null).pop();
+  console.log(
+    `  ${yearFiles.length} year files · ${summary.coverage.from}–${summary.coverage.to} ` +
+    `(readings to ${summary.coverage.latestReading}) · ` +
+    `latest full year ${latest?.year}: NO₂ ${latest?.no2.mean}, PM2.5 ${latest?.pm25.mean}, ` +
+    `PM10 ${latest?.pm10.mean} ${summary.unit}`
+  );
+
+  // On partial fetches, publish the summary but withhold the fingerprint so
+  // the next nightly run retries the missing files.
+  const partial = fetchFailures > 0 || headFailures > 0;
+  const writes = [{ key: "air:summary", value: JSON.stringify(summary) }];
+  if (!partial) writes.push({ key: "air:hash", value: fingerprint });
+  await kvBulkPut(writes);
+  console.log(`  wrote air:summary${partial ? " (hash withheld — will retry next run)" : ", air:hash"}`);
+}
+
 // Fetch a whole file with retries. Fingerprint = ETag (S3 sends one) or
 // content-length — enough to detect a re-publish.
 async function fetchBytesWithRetry(url, attempts = 3) {
@@ -900,6 +983,7 @@ async function main() {
     ["counciltax", () => refreshCouncilTax()],
     ["housing", () => refreshHousing()],
     ["schools", () => refreshSchools()],
+    ["air", () => refreshAirQuality()],
     ["waste", () => refreshWaste()],
   ];
 

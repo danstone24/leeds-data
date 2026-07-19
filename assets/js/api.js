@@ -64,3 +64,7 @@ export function getSchoolsSummary() {
 export function getWasteSummary() {
   return getJson("/api/waste/summary");
 }
+
+export function getAirSummary() {
+  return getJson("/api/air/summary");
+}
