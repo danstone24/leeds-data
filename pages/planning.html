@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Planning applications — Leeds Data</title>
+    <meta
+      name="description"
+      content="Planning in Leeds: how many applications are made, how often they're approved, how fast decisions come — and a map of what's being applied for near you."
+    />
+    <meta name="theme-color" content="#f9f6ef" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1b1a17" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f9f6ef'/%3E%3Crect y='88' width='100' height='6' fill='%231c1b18'/%3E%3Ctext x='50' y='72' font-family='Georgia,serif' font-weight='700' font-size='72' fill='%231c1b18' text-anchor='middle'%3EL%3C/text%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" crossorigin="" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" crossorigin="" />
+    <link rel="stylesheet" href="/assets/css/style.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a href="/" class="brand">Leeds Data<span class="brand-mark">.</span></a>
+        <nav class="site-nav" aria-label="Primary">
+          <a href="/about.html">About</a>
+          <a href="https://datamillnorth.org" rel="noopener">Datamillnorth</a>
+        </nav>
+      </div>
+    </header>
+
+    <nav class="section-nav" aria-label="Topics">
+      <div class="container section-nav-inner">
+        <a href="/pages/spending.html">Spending</a>
+        <a href="/pages/council-tax.html">Council tax</a>
+        <a href="/pages/housing.html">Housing</a>
+        <a href="/pages/schools.html">Schools</a>
+        <a href="/pages/potholes.html">Potholes</a>
+        <a href="/pages/collisions.html">Road safety</a>
+        <a href="/pages/getting-around.html">Getting around</a>
+        <a href="/pages/footfall.html">Footfall</a>
+        <a href="/pages/air-quality.html">Air quality</a>
+        <a href="/pages/recycling.html">Recycling</a>
+        <a href="/pages/planning.html" aria-current="page">Planning</a>
+        <a href="/about.html">About</a>
+      </div>
+    </nav>
+
+    <main>
+      <section class="topic-hero">
+        <div class="container">
+          <p class="hero-kicker">Planning applications</p>
+          <h1 class="hero-title">Does planning ever say no?</h1>
+          <p class="hero-lede" id="summary-line">
+            Loading planning application statistics for Leeds&hellip;
+          </p>
+        </div>
+      </section>
+
+      <section class="container stat-grid" aria-label="Headline figures">
+        <div class="stat">
+          <span class="stat-label">Decisions <span id="tile-quarter">last quarter</span> — <span id="tile-approved">…% approved</span></span>
+          <span class="stat-value" id="stat-decisions">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Applications received <span id="tile-received-quarter">last quarter</span></span>
+          <span class="stat-value" id="stat-received">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Decided within target time</span>
+          <span class="stat-value" id="stat-intime">—</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Major schemes decided in the last year</span>
+          <span class="stat-value" id="stat-majors">—</span>
+        </div>
+      </section>
+
+      <div class="container">
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>Planning rarely says no</h2>
+            <p class="chart-caption" id="hero-caption">
+              Applications decided each quarter, and how many of them were
+              granted. The two lines barely separate: the overwhelming
+              majority of planning applications in Leeds are approved, and
+              that has been true for decades.
+            </p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="chart-canvas-wrap">
+              <canvas id="hero-chart" aria-label="Planning applications decided and granted per quarter in Leeds"></canvas>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>Big schemes face tougher odds</h2>
+            <p class="chart-caption" id="approval-caption">
+              Share of decisions granted over each rolling year, split by the
+              size of the development. Major schemes — 10 homes or more, or
+              large commercial floorspace — are refused far more often than
+              householder extensions and other small applications.
+            </p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="chart-canvas-wrap">
+              <canvas id="approval-chart" aria-label="Approval rate for major, minor and other planning applications"></canvas>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>How much is being applied for?</h2>
+            <p class="chart-caption" id="received-caption">
+              New planning applications received each quarter. The long
+              decline since the mid-2000s mirrors the national picture —
+              fewer, larger applications, and more work done under permitted
+              development rights that never reaches a planning application.
+            </p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="chart-canvas-wrap">
+              <canvas id="received-chart" aria-label="Planning applications received per quarter in Leeds"></canvas>
+            </div>
+          </div>
+        </figure>
+
+        <figure class="figure">
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>What's being applied for near you?</h2>
+            <p class="chart-caption" id="map-caption">
+              Planning applications from the last 12 months, mapped. Zoom in
+              to split the clusters and click a dot for the details and a
+              link to the council's planning portal. This layer comes from
+              the volunteer-run PlanIt service, not official statistics.
+            </p>
+            <div class="map-legend" aria-hidden="true">
+              <span><span class="dot" style="background: var(--status-good)"></span> Granted</span>
+              <span><span class="dot" style="background: var(--status-critical)"></span> Refused</span>
+              <span><span class="dot" style="background: var(--series-other)"></span> Undecided or other</span>
+            </div>
+          </figcaption>
+          <div class="figure-body">
+            <div id="map" class="map-wrap" role="img" aria-label="Map of planning applications across Leeds from the last 12 months"></div>
+          </div>
+        </figure>
+
+        <figure class="figure" id="large-figure" hidden>
+          <figcaption>
+            <span class="figure-no"></span>
+            <h2>Recent large applications</h2>
+            <p class="chart-caption" id="large-caption">
+              The most recent large applications — the schemes that change a
+              neighbourhood — with links to the full documents on the
+              council's planning portal. From PlanIt, so descriptions are as
+              the applicant wrote them.
+            </p>
+          </figcaption>
+          <div class="figure-body">
+            <div class="table-wrap">
+              <table class="data-table" id="large-table">
+                <thead>
+                  <tr>
+                    <th>Application</th>
+                    <th>Status</th>
+                    <th>Received</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </figure>
+      </div>
+
+      <section class="container source-block">
+        <p>
+          <strong>Sources:</strong>
+          <a href="https://www.gov.uk/government/statistical-data-sets/live-tables-on-planning-application-statistics" rel="noopener">MHCLG planning application statistics (PS1/PS2)</a>
+          — official statistics covering every planning authority in England —
+          and, for the map and large-applications list only,
+          <a href="https://www.planit.org.uk/" rel="noopener">PlanIt</a>,
+          a free, donation-supported service that compiles applications from
+          council planning portals.
+          Last updated <span id="source-updated">—</span>.
+        </p>
+        <p class="muted">
+          Every figure on this page comes from the Ministry of Housing,
+          Communities and Local Government's quarterly returns — the same
+          numbers used in official statistics, from the unrounded open-data
+          tables. The map and the large-applications table are different:
+          they come from PlanIt, a volunteer-run aggregator of council
+          planning portals, and are shown for orientation only — treat them
+          as a guide to what's nearby, not as statistics. If PlanIt is
+          unavailable the map disappears but every chart above still works.
+          "In time" means decided within the statutory period (or an agreed
+          extension); "major" schemes are 10 or more homes or comparable
+          commercial floorspace.
+        </p>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <p>
+          Data from
+          <a href="https://www.gov.uk/government/statistical-data-sets/live-tables-on-planning-application-statistics" rel="noopener">MHCLG</a>
+          (Open Government Licence) and
+          <a href="https://www.planit.org.uk/" rel="noopener">PlanIt</a>.
+        </p>
+        <p>
+          Built by Dan Stone. Source on
+          <a href="https://github.com/danstone24/leeds-data" rel="noopener">GitHub</a>.
+        </p>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" crossorigin=""></script>
+    <script type="module" src="/assets/js/charts/planning.js" defer></script>
+  </body>
+</html>

@@ -21,6 +21,10 @@
 //   GET /api/counciltax/summary
 //   GET /api/housing/summary
 //   GET /api/schools/summary
+//   GET /api/waste/summary
+//   GET /api/air/summary
+//   GET /api/planning/summary
+//   GET /api/planning/apps
 
 import {
   handleSummary,
@@ -35,6 +39,9 @@ import { handleFootfallSummary } from "./footfall.js";
 import { handleCouncilTaxSummary } from "./counciltax.js";
 import { handleHousingSummary } from "./housing.js";
 import { handleSchoolsSummary } from "./schools.js";
+import { handleWasteSummary } from "./waste.js";
+import { handleAirSummary } from "./air.js";
+import { handlePlanningSummary, handlePlanningApps } from "./planning.js";
 
 const CORS_HEADERS = {
   "access-control-allow-origin": "*",
@@ -151,6 +158,29 @@ export default {
     if (path === "/schools/summary") {
       const data = await handleSchoolsSummary(env);
       return data ? json(data) : json({ error: "No schools data yet" }, { status: 503 });
+    }
+
+    if (path === "/waste/summary") {
+      const data = await handleWasteSummary(env);
+      return data ? json(data) : json({ error: "No waste data yet" }, { status: 503 });
+    }
+
+    if (path === "/air/summary") {
+      const data = await handleAirSummary(env);
+      return data ? json(data) : json({ error: "No air quality data yet" }, { status: 503 });
+    }
+
+    if (path === "/planning/summary") {
+      const data = await handlePlanningSummary(env);
+      return data ? json(data) : json({ error: "No planning data yet" }, { status: 503 });
+    }
+
+    if (path === "/planning/apps") {
+      const data = await handlePlanningApps(env);
+      // The map payload changes daily at most and is heavier — cache harder.
+      return data
+        ? json(data, { headers: { "cache-control": "public, max-age=3600" } })
+        : json({ error: "No planning map data yet" }, { status: 503 });
     }
 
     const txnMatch = path.match(/^\/spending\/transactions\/(\d{4}-\d{2})$/);

@@ -6,7 +6,7 @@
 
 ## Project goal
 
-A public website that visualises open data published by **Leeds City Council** via [Datamillnorth.org](https://datamillnorth.org). The site exists so anyone — residents, journalists, councillors — can see at a glance how the council is performing on things like potholes, spending, traffic, planning, recycling, etc.
+A public website that visualises open data about Leeds — mostly **Leeds City Council**'s own datasets via [Datamillnorth.org](https://datamillnorth.org), plus official national statistics (DEFRA, MHCLG) for the three topics the council doesn't publish (air quality, recycling & waste, planning). The site exists so anyone — residents, journalists, councillors — can see at a glance how the council is performing on things like potholes, spending, traffic, planning, recycling, etc.
 
 **Audience**: general public. No assumed technical knowledge. Every chart should answer a "why should I care" question, not just dump numbers.
 
@@ -142,6 +142,8 @@ A public website that visualises open data published by **Leeds City Council** v
 
 ## Data sources
 
+**Primary source** is Datamillnorth; three topics use external sources instead (no usable Datamillnorth data, checked July 2026): **air quality** (DEFRA UK-AIR per-year CSVs), **recycling & waste** (DEFRA LA-waste ODS + fly-tipping CSVs) and **planning** (MHCLG PS1/PS2 CSVs + the PlanIt API map layer). All external fetches happen server-side in the nightly refresh; the frontend still only reads our Worker. Common gotchas: GOV.UK/DEFRA media URLs change every publication (re-discover via the GOV.UK content API or a page scrape on each run), and several files carry stray NUL/BOM bytes that defeat grep but parse fine once stripped.
+
 Datamillnorth runs **DataPress** (not CKAN — the CKAN-compatible facade is deprecated). API base: `https://datamillnorth.org/api/v3/`.
 
 Useful endpoints:
@@ -183,7 +185,7 @@ See [docs/data-sources.md](docs/data-sources.md) for the curated list of dataset
 
 ## Current status
 
-**Last updated**: 2026-07-18
+**Last updated**: 2026-07-19
 
 - [x] Stack chosen, repo scaffolded
 - [x] GitHub repo created at https://github.com/danstone24/leeds-data
@@ -206,12 +208,12 @@ See [docs/data-sources.md](docs/data-sources.md) for the curated list of dataset
 - [x] Eighth topic (Council housing — three datasets: bids `20jjj`, stock by ward `2o1gn`, tenanted stock `ep6qr`) — live at pages/housing.html: bids-per-home trend, homes advertised, shrinking-stock trend, by-ward + by-bedrooms competition, stock-mix donut. Bids span two ward eras (pre-2018 2-letter codes vs named post-2018 wards — NOT 1:1, so ward stats use the named era only); the stock CSV is two side-by-side year blocks parsed positionally and only its Grand Total row is trusted. See `housing.js`.
 - [x] Ninth topic (School places — four datasets: prefs `24l45`/`e619w`, allocations `e6qpz`/`23ym1`) — live at pages/schools.html: first-choice demand by phase, most-competitive council-run primaries, places offered vs filled, spare-places share. Header rows are detected by content (junk preamble lines, era-drifting column names); PAN/allocated only exist for community/VC schools (academies stopped reporting after 2019), so those charts are council-run primaries only and the page says so. See `schools.js`.
 
-Nine topics + the About page are now built. The three remaining "Coming soon" topics have NO usable Datamillnorth data (checked July 2026) and are **all scoped against free external sources, verified with live requests on 2026-07-18** — each has a build plan a session can execute directly:
+- [x] Tenth topic (Air quality — DEFRA UK-AIR, first non-Datamillnorth source, Leeds Centre `site_id=LEED`) — live at pages/air-quality.html: annual NO₂/PM2.5/PM10 means vs UK legal limits + WHO 2021 guidelines (inline reference-line plugin), NO₂ by hour, seasonal cycle, PM10 days-over-50 vs the 35-day allowance. One CSV per year fetched directly (plain fetch, HEAD-header fingerprint); columns matched by name after stripping `<sub>` HTML (schema drifts, 2008 has no tags); blank = monitor down, so annual means below 75% capture are withheld and provisional (P/P*) years flagged. See `air.js`.
+- [x] Eleventh topic (Recycling & waste — two DEFRA sources, no Datamillnorth: LA collected waste ODS + fly-tipping incidents/actions CSVs) — live at pages/recycling.html: Leeds vs England recycling rate, landfill collapse after the RERF opened (~2016), fly-tipping trend, incidents by land type, enforcement actions vs incidents. Hand-rolled ODS extraction in `waste.js` (zip central-directory reader + `inflateRawSync`; `node:zlib` imported lazily so the Worker stays deployable) — `table:number-columns-repeated` MUST be expanded or columns misalign; ODS values are strings ("34.7%", "-" as null); fly-tipping CSVs can carry NUL/BOM bytes and a line-2 header; Leeds matched by ONS code `E08000035` never by name. Both source URLs re-discovered every run (GOV.UK content API for the ODS; data.gov.uk page scrape for the CSVs — the content API has no attachments for that page).
+- [x] Twelfth topic (Planning — MHCLG PS1/PS2 open-data CSVs + PlanIt map layer, no Datamillnorth) — live at pages/planning.html: decided-vs-granted per quarter back to 1988 ("planning rarely says no" — ~81–87% approved), rolling-year approval by scheme size (majors refused most), applications received since 1996, PlanIt map of the last 12 months + recent large applications. PS1/PS2 discovered via the GOV.UK content API (titles anchored on "District" — County CPS files also match loosely; media URLs change per release and double as the hash), header found by content (preamble depth varies), columns matched by name, `..` = null, stray NUL/BOM stripped, Leeds = LPACD E08000035. PlanIt (volunteer-run) powers the map ONLY: month-windowed polite paging, 429/Retry-After backoff, hard caps, last-good `planning:apps` kept on failure, page degrades gracefully. See `planning.js`.
 
-- **Air quality** — [docs/air-quality-plan.md](docs/air-quality-plan.md). DEFRA UK-AIR (Leeds Centre, `site_id=LEED`), per-year hourly CSVs. Lowest effort of the three; suggested first.
-- **Recycling & waste** — [docs/recycling-waste-plan.md](docs/recycling-waste-plan.md). DEFRA LA collected-waste ODS (recycling/landfill indicators per LA, 2010-11→now; ODS parsing decision needed) + DEFRA fly-tipping per-LA CSVs (2012-13→now). Homepage card copy must be reworded (ward-level recycling and bin performance don't exist as open data).
-- **Planning** — [docs/planning-plan.md](docs/planning-plan.md). MHCLG PS1/PS2 quarterly open-data CSVs (volumes/approvals/speed per LPA — source of truth) + the free PlanIt API for an application-level map layer (third-party scraper; display only, degrade gracefully).
+All twelve topics + the About page are now built — every homepage card is Live. The last three are the site's first non-Datamillnorth sources (build plans that produced them: [docs/air-quality-plan.md](docs/air-quality-plan.md), [docs/recycling-waste-plan.md](docs/recycling-waste-plan.md), [docs/planning-plan.md](docs/planning-plan.md)); the "mostly Datamillnorth" wording on the homepage, about page, README and this file reflects that.
 
-These will be the site's first non-Datamillnorth sources — when the first one ships, update the "all data from Datamillnorth" wording above and on the about page. Common gotcha recorded in the plans: GOV.UK/DEFRA release URLs change every publication (discover via the GOV.UK content API / page scrape), and several of the CSVs contain stray NUL/BOM bytes that defeat grep but parse fine.
+**Note for air/waste/planning**: aggregators were verified locally against real downloads (known-good spot figures all passed exactly), but the live pages only get data after a production refresh populates `air:*`/`waste:*`/`planning:*` in KV — eyeball the live figures after the first refresh.
 
 **Note for cycle/traffic**: the trend numbers only become real after a production refresh populates `counts:*` in KV. Sanity-check the actual modal-shift figures before promoting any specific % claim — the aggregator is verified but the live trend hasn't been eyeballed yet.

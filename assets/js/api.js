@@ -60,3 +60,19 @@ export function getHousingSummary() {
 export function getSchoolsSummary() {
   return getJson("/api/schools/summary");
 }
+
+export function getWasteSummary() {
+  return getJson("/api/waste/summary");
+}
+
+export function getAirSummary() {
+  return getJson("/api/air/summary");
+}
+
+export function getPlanningSummary() {
+  return getJson("/api/planning/summary");
+}
+
+export function getPlanningApps() {
+  return getJson("/api/planning/apps");
+}

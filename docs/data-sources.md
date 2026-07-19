@@ -1,6 +1,6 @@
 # Data sources
 
-All data on this site comes from **[Datamillnorth.org](https://datamillnorth.org)**, Leeds City Council's open-data portal. It runs **DataPress** (not CKAN — the legacy CKAN endpoints are deprecated).
+Most data on this site comes from **[Datamillnorth.org](https://datamillnorth.org)**, Leeds City Council's open-data portal. It runs **DataPress** (not CKAN — the legacy CKAN endpoints are deprecated). Three topics have no usable Datamillnorth dataset and use national sources instead: **air quality** (DEFRA UK-AIR), **recycling & waste** (DEFRA statistics) and **planning** (MHCLG statistics + the PlanIt map layer) — see their entries below.
 
 ## The DataPress API
 
@@ -197,6 +197,130 @@ Two datasets with an **identical schema**, so they share one aggregator (`counts
 - **KV layout**: `schools:summary`, `schools:hash` (one fingerprint across all four datasets).
 - **Worker route**: `GET /api/schools/summary`
 - **Chart**: [pages/schools.html](../pages/schools.html), [assets/js/charts/schools.js](../assets/js/charts/schools.js). Demand trend by phase, most-competitive council-run primaries, places offered vs filled, spare-places share.
+
+### Air quality (DEFRA UK-AIR — not Datamillnorth)
+
+- **Dataset**: [Leeds Centre monitoring station](https://uk-air.defra.gov.uk/data/flat_files?site_id=LEED) (`site_id=LEED`, AURN urban background, DEFRA UK-AIR)
+- **Resources**: one CSV per year, direct URL `https://uk-air.defra.gov.uk/datastore/data_files/site_data/LEED_<YEAR>.csv?v=1` (~1.4 MB, ~8,760 hourly rows). No API key, no auth. 2007 onwards used (files exist back to at least 2006; v1 scope starts 2007). Current-year file updates daily, ~2 days behind.
+- **Update cadence**: nightly refresh; ratified years never change, so the fingerprint is per-year ETag/Last-Modified from HEAD requests.
+- **Why we use it**: the only long-run, hourly, quality-assured air pollution record for central Leeds — NO₂, PM2.5, PM10, O₃ (plus CO/SO₂/NOₓ we don't chart).
+- **Schema**: ~4 preamble lines, then a header starting `Date,time`, then a near-blank spacer line. Each pollutant is a value/status/unit column triplet. Dates `DD-MM-YYYY`, times hour-ending `01:00`–`24:00` GMT.
+- **Quirks**:
+  - Column names contain HTML (`PM<sub>2.5</sub> …`) in most years but not 2008 — strip tags and match by name; the column set drifts (2008 has 12 pollutant channels incl. volatile/non-volatile PM, 2024 has 8).
+  - Blank value = monitor down; every mean carries a data-capture %. Annual means below 75% capture are withheld (nulled) per DEFRA convention — e.g. 2013 PM and pre-2009 PM2.5.
+  - Status `R` = ratified, `P`/`P*` = provisional (the newest year or two); provisional years are flagged in the summary and drawn as open points.
+  - Small negative hourly PM values occur in TEOM-FDMS-era files (2009–2016) and are kept in means, as DEFRA does.
+- **KV layout**: `air:summary`, `air:hash`.
+- **Worker route**: `GET /api/air/summary`
+- **Chart**: [pages/air-quality.html](../pages/air-quality.html), [assets/js/charts/air-quality.js](../assets/js/charts/air-quality.js). Annual means vs UK/WHO limits, NO₂ by hour, seasonal cycle, PM10 days over 50 µg/m³.
+
+### Recycling & waste (two DEFRA sources, one page)
+
+The first topic with **no Datamillnorth data** (checked July 2026) — both
+sources are DEFRA, free, Crown copyright / OGL, fetched server-side by the
+nightly refresh.
+
+- **Datasets**:
+  - [Local authority collected waste management annual results](https://www.gov.uk/government/statistics/local-authority-collected-waste-management-annual-results)
+    — one ODS (~2 MB), re-published each March. Sheet `Table_3` "Selected
+    Waste Indicators": one row per authority per year, 2010-11 → latest
+    (recycling %, landfill %, residual kg/household, kg/person). `Table_3b`:
+    England household recycling rate back to 2000-01.
+  - [Fly-tipping statistics for England](https://www.gov.uk/government/statistics/fly-tipping-statistics-for-england)
+    — two per-authority CSVs on S3 (incidents + actions), 2012-13 → latest.
+- **URL discovery (required — links change every release)**:
+  - ODS: GOV.UK content API
+    (`https://www.gov.uk/api/content/government/statistics/local-authority-collected-waste-management-annual-results`)
+    → `details.attachments[]` → title starting "Local authority collected
+    waste generation annual results" → `url`.
+  - Fly-tipping: the content API returns no attachments for the ENV24 page,
+    so scrape the data.gov.uk dataset page
+    (`https://www.data.gov.uk/dataset/1388104c-3599-4cd2-abb5-ca8ddeeb4c9c/fly-tipping_in_england_`)
+    for `Local+authority+flytipping+(incidents|actions)+…\.csv`; the
+    `statistics_YYYY` path segment moves each year.
+- **Update cadence**: both annual (waste in March, fly-tipping in winter);
+  refreshed nightly anyway, hash-skipped on the files' ETag/content-length.
+- **Why we use them**: "do we recycle enough, and who's dumping on Leeds?" —
+  Leeds vs England recycling rate, the landfill→incineration shift after the
+  RERF opened (~2016), and fly-tipping scale/location/enforcement.
+- **Quirks** (handled in `waste.js`):
+  - The ODS is parsed with a hand-rolled zip reader (central directory +
+    `zlib.inflateRawSync`, no dependency; handles STORED and DEFLATE
+    entries). `node:zlib` is imported lazily so the Worker stays deployable.
+  - ODS cell runs are collapsed with `table:number-columns-repeated` (one
+    row ends with a 16,000-cell blank run) — repeats must be expanded or
+    every column misaligns; rows are capped at 40 columns.
+  - ODS values are strings: `34.7%`, numbers padded with `<text:s/>`, `-` /
+    `..` for missing. Year labels drift between `2019-20` and `2019/20`.
+  - The fly-tipping CSVs can carry stray NUL bytes and a BOM (they defeat
+    grep but parse fine once stripped at the byte level); the real header is
+    on line 2 after a title line, detected by content; one header cell is a
+    quoted multi-line value ("Chemical Drums, Oil, Fuel Incidents"); `:` is
+    a null marker; the `£` in cost headers arrives cp1252-mangled some years.
+  - **Leeds is matched by ONS code `E08000035` only** — it's "Leeds City
+    Council MBC" in the ODS and "Leeds" in the fly-tipping files.
+  - Fly-tipping incident counts partly reflect **reporting practice** (DEFRA's
+    own caveat — the 2012-13 → 2013-14 jump from ~3,000 to ~10,500 is largely
+    a recording change); the page says so.
+- **KV layout**: `waste:summary`, `waste:hash` (ETag/content-length
+  fingerprint across all three files; nothing is written if any fetch fails,
+  so the hash is withheld and the next run retries).
+- **Worker route**: `GET /api/waste/summary`
+- **Chart**: [pages/recycling.html](../pages/recycling.html),
+  [assets/js/charts/recycling.js](../assets/js/charts/recycling.js). Leeds vs
+  England recycling rate, landfill trend, fly-tipping trend, incidents by
+  land type, actions vs incidents.
+
+### Planning applications
+
+- **Datasets** (no usable Datamillnorth data — checked July 2026, `exkkr` is
+  a lone guidance file):
+  - [MHCLG live tables on planning application statistics](https://www.gov.uk/government/statistical-data-sets/live-tables-on-planning-application-statistics)
+    — PS1 full dataset (~12 MB: received/decided/withdrawn per LPA per
+    quarter) + PS2 full dataset (~58 MB: decisions by outcome, size and
+    speed). The unrounded open-data tables, not the rounded ODS live tables.
+  - [PlanIt](https://www.planit.org.uk/) ([API](https://www.planit.org.uk/api/))
+    — application-level map layer only, last 12 months of Leeds applications.
+- **URL discovery (required — media URLs change every publication)**: GOV.UK
+  content API (`https://www.gov.uk/api/content/government/statistical-data-sets/live-tables-on-planning-application-statistics`)
+  → `details.attachments[]` → titles anchored on
+  `District planning application statistics (PS1) - full dataset` (and PS2).
+  Anchoring matters: the same page carries County-level `CPS1`/`CPS2` files
+  whose titles contain "PS1"/"PS2". Because the URLs change per publication
+  and GOV.UK assets are immutable, the URL pair doubles as the refresh
+  fingerprint — no download needed to detect "unchanged".
+- **Update cadence**: quarterly (roughly Mar/Jun/Sep/Dec releases); PlanIt
+  scrapes the council portal daily-ish.
+- **Why we use them**: "does planning ever say no?" — decade-scale approval
+  rates, the majors-vs-minors refusal gap, decision speed, and a what's-near-
+  you map that Datamillnorth cannot provide.
+- **Quirks** (handled in `planning.js`):
+  - Preamble rows before the header vary by file (PS1 has 3, PS2 has 2 in
+    the March 2026 edition) — the header row is detected by content
+    (`Region, LPANM, LPACD, Quarter`), and every measure is looked up by
+    NAME, never position (~330 semicolon-named columns in PS2, drifting).
+  - Missing values are `..` → null; some editions carry stray NUL/BOM bytes
+    that defeat grep but parse fine once stripped.
+  - **Leeds = LPACD `E08000035`.** PS2 history reaches 1988 Q4, PS1 1996 Q2.
+  - "% decided in time" sums the excluding-PA and PA-only in-time measures
+    over their combined decision counts.
+  - PlanIt is rate-limited (429 + Retry-After, honoured with backoff), caps
+    responses at 5,000 results / 1,000 kB, and asks for polite paging — the
+    refresh pages month-by-month at `pg_sz=300` with 1.5 s pauses and hard
+    caps (60 requests / 15,000 records). Records are deduped by `name`,
+    descriptions trimmed, coordinates bounded to Leeds.
+  - PlanIt is a volunteer-run third-party scraper: it powers the map/table
+    only, its failure keeps the last-good `planning:apps` blob, and the page
+    says so. Attribution (name + link) is required courtesy.
+- **KV layout**: `planning:summary` (MHCLG stats), `planning:apps` (PlanIt
+  map payload — never overwritten with an empty result), `planning:hash`
+  (PS1+PS2 URL fingerprint; withheld if either fetch fails so the next run
+  retries).
+- **Worker routes**: `GET /api/planning/summary`, `GET /api/planning/apps`
+- **Chart**: [pages/planning.html](../pages/planning.html),
+  [assets/js/charts/planning.js](../assets/js/charts/planning.js). Decided vs
+  granted per quarter (1988→now), rolling-year approval rate by scheme size,
+  applications received (1996→now), PlanIt map + recent large applications.
 
 ## Template for new entries
 

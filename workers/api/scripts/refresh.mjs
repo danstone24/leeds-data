@@ -24,6 +24,9 @@ import {
   finaliseHousing,
 } from "../src/housing.js";
 import { parsePrefsRecords, parseAllocRecords, buildSchools } from "../src/schools.js";
+import { buildWaste } from "../src/waste.js";
+import { buildAirQuality } from "../src/air.js";
+import { buildPlanning, normalisePlanitApps } from "../src/planning.js";
 import { parseCsvObjects, parseCsvStream } from "../src/csv.js";
 
 // Bump this when buildMonthlySummary's logic or output shape changes — it
@@ -60,6 +63,28 @@ const SCHOOLS_DATASETS = {
   secondaryPrefs: "e619w",
   secondaryAlloc: "23ym1",
 };
+// And air quality (DEFRA UK-AIR, Leeds Centre — the first non-Datamillnorth
+// source: plain fetch, one CSV per year, no API key).
+const AIR_VERSION = "v1";
+const AIR_FIRST_YEAR = 2007;
+const AIR_SITE_ID = "LEED";
+const airYearUrl = (year) =>
+  `https://uk-air.defra.gov.uk/datastore/data_files/site_data/${AIR_SITE_ID}_${year}.csv?v=1`;
+// And recycling & waste (two DEFRA sources — the first non-Datamillnorth
+// data alongside air quality). Source URLs change every release, so both
+// are re-discovered on each run.
+const WASTE_VERSION = "v1";
+const WASTE_CONTENT_API =
+  "https://www.gov.uk/api/content/government/statistics/local-authority-collected-waste-management-annual-results";
+const FLYTIP_DATASET_PAGE =
+  "https://www.data.gov.uk/dataset/1388104c-3599-4cd2-abb5-ca8ddeeb4c9c/fly-tipping_in_england_";
+// And planning (two external sources: MHCLG PS1/PS2 stats + PlanIt map layer).
+const PLANNING_VERSION = "v1";
+const PLANNING_CONTENT_API =
+  "https://www.gov.uk/api/content/government/statistical-data-sets/live-tables-on-planning-application-statistics";
+const PLANIT_PAGE_SIZE = 300;
+const PLANIT_MAX_REQUESTS = 60;
+const PLANIT_MAX_RECORDS = 15000;
 
 const {
   CLOUDFLARE_API_TOKEN,
@@ -771,6 +796,291 @@ async function refreshSchools() {
   console.log(`  wrote schools:summary${fetchFailures ? " (hash withheld — will retry files next run)" : ", schools:hash"}`);
 }
 
+// Air quality: DEFRA UK-AIR hourly CSVs for Leeds Centre, one per year,
+// fetched directly (not a Datamillnorth resource). Ratified years never
+// change, so the fingerprint is built from each year's ETag/Last-Modified
+// via cheap HEAD requests; any header change (or a new year appearing)
+// triggers a full re-aggregation, since the summary spans every year.
+async function refreshAirQuality() {
+  console.log(`Air quality: aggregating (version ${AIR_VERSION})…`);
+
+  const currentYear = new Date().getUTCFullYear();
+  const years = [];
+  for (let y = AIR_FIRST_YEAR; y <= currentYear; y++) years.push(y);
+
+  let headFailures = 0;
+  const prints = await pMap(years, Number(CONCURRENCY), async (year) => {
+    try {
+      const res = await fetch(airYearUrl(year), { method: "HEAD" });
+      if (!res.ok) return `${year}:absent`; // next year's file before it exists
+      const sig =
+        (res.headers.get("etag") || "") +
+        ":" +
+        (res.headers.get("last-modified") || "") +
+        ":" +
+        (res.headers.get("content-length") || "");
+      // No usable headers → can't prove it's unchanged; force a refresh.
+      return sig === "::" ? `${year}:unknown-${Date.now()}` : `${year}:${sig}`;
+    } catch (err) {
+      headFailures++;
+      console.warn(`  HEAD failed for ${year}: ${err.message}`);
+      return `${year}:error`;
+    }
+  });
+
+  const fingerprint = `${AIR_VERSION}:` + prints.join(",");
+  const lastFingerprint = await kvGet("air:hash");
+  if (FORCE !== "1" && headFailures === 0 && lastFingerprint === fingerprint) {
+    console.log("  ✓ unchanged, skipping");
+    return;
+  }
+
+  let fetchFailures = 0;
+  const yearFiles = [];
+  for (const year of years) {
+    try {
+      const res = await fetch(airYearUrl(year));
+      if (res.status === 404) continue; // year not published (yet)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      yearFiles.push({ year, text: await res.text() });
+    } catch (err) {
+      fetchFailures++;
+      console.warn(`  failed on ${year}: ${err.message}`);
+    }
+  }
+  if (!yearFiles.length) {
+    console.warn("  no year files fetched — skipping air quality");
+    return;
+  }
+
+  const summary = await buildAirQuality(yearFiles);
+  const latest = summary.years.filter((y) => y.no2.mean !== null).pop();
+  console.log(
+    `  ${yearFiles.length} year files · ${summary.coverage.from}–${summary.coverage.to} ` +
+    `(readings to ${summary.coverage.latestReading}) · ` +
+    `latest full year ${latest?.year}: NO₂ ${latest?.no2.mean}, PM2.5 ${latest?.pm25.mean}, ` +
+    `PM10 ${latest?.pm10.mean} ${summary.unit}`
+  );
+
+  // On partial fetches, publish the summary but withhold the fingerprint so
+  // the next nightly run retries the missing files.
+  const partial = fetchFailures > 0 || headFailures > 0;
+  const writes = [{ key: "air:summary", value: JSON.stringify(summary) }];
+  if (!partial) writes.push({ key: "air:hash", value: fingerprint });
+  await kvBulkPut(writes);
+  console.log(`  wrote air:summary${partial ? " (hash withheld — will retry next run)" : ", air:hash"}`);
+}
+
+// Fetch a whole file with retries. Fingerprint = ETag (S3 sends one) or
+// content-length — enough to detect a re-publish.
+async function fetchBytesWithRetry(url, attempts = 3) {
+  for (let i = 1; ; i++) {
+    try {
+      const res = await fetch(url, { headers: { "user-agent": "leedsdata.co.uk nightly refresh" } });
+      if (!res.ok) throw new Error(`${res.status} for ${url}`);
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      const fingerprint =
+        res.headers.get("etag") || res.headers.get("content-length") || String(bytes.length);
+      return { bytes, fingerprint };
+    } catch (err) {
+      if (i >= attempts) throw err;
+      const pause = 3000 * i * i;
+      console.log(`    retrying in ${pause / 1000}s (${err.message})`);
+      await sleep(pause);
+    }
+  }
+}
+
+// Recycling & waste: DEFRA's LA-collected-waste ODS (recycling/landfill/
+// residual indicators) + the two per-authority fly-tipping CSVs. The ODS
+// media URL changes every March release, so it's discovered via the GOV.UK
+// content API; the fly-tipping links move too (statistics_YYYY path) and the
+// content API returns no attachments for that page, so they're scraped off
+// the data.gov.uk dataset page. If ANY of the three fetches fails, we bail
+// without writing summary or hash — the stored summary stays complete and
+// the withheld hash makes the next nightly run retry everything.
+async function refreshWaste() {
+  console.log(`Waste: aggregating (version ${WASTE_VERSION})…`);
+
+  const content = await (await fetch(WASTE_CONTENT_API)).json();
+  const attachment = (content.details?.attachments || []).find((a) =>
+    /^local authority collected waste generation annual results/i.test(a.title || "")
+  );
+  if (!attachment?.url) {
+    console.warn("  waste ODS attachment not found on GOV.UK — skipping waste");
+    return;
+  }
+
+  const page = await (await fetch(FLYTIP_DATASET_PAGE)).text();
+  const csvUrl = (kind) => {
+    const re = new RegExp(`https://[^"']*Local\\+authority\\+flytipping\\+${kind}[^"']*\\.csv`, "g");
+    // Several releases can be linked; the sort makes the newest
+    // (statistics_YYYY / year-range) win.
+    return [...new Set(page.match(re) || [])].sort().pop() || null;
+  };
+  const incidentsUrl = csvUrl("incidents");
+  const actionsUrl = csvUrl("actions");
+  if (!incidentsUrl || !actionsUrl) {
+    console.warn("  fly-tipping CSV links not found on data.gov.uk — skipping waste");
+    return;
+  }
+
+  let ods, incidents, actions;
+  try {
+    ods = await fetchBytesWithRetry(attachment.url);
+    incidents = await fetchBytesWithRetry(incidentsUrl);
+    actions = await fetchBytesWithRetry(actionsUrl);
+  } catch (err) {
+    console.warn(`  fetch failed (${err.message}) — skipping waste, hash withheld so next run retries`);
+    return;
+  }
+
+  const fingerprint =
+    `${WASTE_VERSION}:` + [ods, incidents, actions].map((f) => f.fingerprint).join(",");
+  const lastFingerprint = await kvGet("waste:hash");
+  if (FORCE !== "1" && lastFingerprint === fingerprint) {
+    console.log("  ✓ unchanged, skipping");
+    return;
+  }
+
+  const summary = await buildWaste({
+    odsBuffer: ods.bytes,
+    incidentsCsv: incidents.bytes,
+    actionsCsv: actions.bytes,
+    meta: { odsUrl: attachment.url },
+  });
+
+  const latest = summary.recycling.leeds.at(-1);
+  const england = summary.recycling.england.at(-1);
+  console.log(
+    `  recycling: ${summary.recycling.leeds.length} Leeds years · latest ${latest?.year} ` +
+    `${latest?.recycling}% (England ${england?.rate}%) · landfill ${latest?.landfill}% · ` +
+    `residual ${latest?.residualKg} kg/household`
+  );
+  console.log(
+    `  fly-tipping: ${summary.flyTipping.yearly.length} years · ` +
+    `${summary.flyTipping.latest?.year}: ${summary.flyTipping.latest?.incidents?.toLocaleString()} incidents`
+  );
+
+  await kvBulkPut([
+    { key: "waste:summary", value: JSON.stringify(summary) },
+    { key: "waste:hash", value: fingerprint },
+  ]);
+  console.log("  wrote waste:summary, waste:hash");
+}
+
+// Planning: the site's first non-Datamillnorth topic. Stats come from MHCLG's
+// PS1/PS2 quarterly open-data CSVs (~12 MB + ~58 MB), discovered via the
+// GOV.UK content API because the media URLs change every publication — which
+// also makes the URL pair a free fingerprint (GOV.UK asset URLs are
+// immutable), so the 70 MB download is skipped when nothing changed.
+// The PlanIt map layer (last 12 months of Leeds applications) is fetched in
+// monthly windows so no single query approaches PlanIt's 5,000-result cap.
+// PlanIt is volunteer-run: its failure only logs a warning, keeps the
+// last-good planning:apps blob, and never sinks the stats refresh.
+async function refreshPlanning() {
+  console.log(`Planning: aggregating (version ${PLANNING_VERSION})…`);
+  let statsError = null;
+
+  // --- MHCLG PS1/PS2 statistics --------------------------------------------
+  try {
+    const contentRes = await fetch(PLANNING_CONTENT_API, { headers: { accept: "application/json" } });
+    if (!contentRes.ok) throw new Error(`GOV.UK content API ${contentRes.status}`);
+    const content = await contentRes.json();
+    const attachments = content.details?.attachments || [];
+    // Anchored on "District" — the same page carries County (CPS1/CPS2) files.
+    const findCsv = (re) => attachments.find((a) => re.test(a.title || ""))?.url;
+    const ps1Url = findCsv(/^District planning application statistics \(PS1\) - full dataset$/);
+    const ps2Url = findCsv(/^District planning application statistics \(PS2\) - full dataset$/);
+    if (!ps1Url || !ps2Url) throw new Error("PS1/PS2 full-dataset attachments not found");
+
+    const fingerprint = `${PLANNING_VERSION}:${ps1Url},${ps2Url}`;
+    const lastFingerprint = await kvGet("planning:hash");
+    if (FORCE !== "1" && lastFingerprint === fingerprint) {
+      console.log("  ✓ MHCLG stats unchanged, skipping");
+    } else {
+      const download = async (url, label) => {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`${label} fetch ${res.status}`);
+        return res.text();
+      };
+      const [ps1Csv, ps2Csv] = await Promise.all([download(ps1Url, "PS1"), download(ps2Url, "PS2")]);
+      const summary = await buildPlanning({ ps1Csv, ps2Csv, sources: { ps1: ps1Url, ps2: ps2Url } });
+      console.log(
+        `  ${summary.quarters.length} quarters ${summary.coverage.from} → ${summary.coverage.to} · ` +
+        `latest ${summary.tiles?.quarter}: ${summary.tiles?.decisions} decisions, ` +
+        `${Math.round((summary.tiles?.approvalShare ?? 0) * 100)}% approved`
+      );
+      // Summary and hash are written together, and only after a successful
+      // aggregate of BOTH files — a partial fetch throws above, keeps the
+      // last-good summary and withholds the hash so the next run retries.
+      await kvBulkPut([
+        { key: "planning:summary", value: JSON.stringify(summary) },
+        { key: "planning:hash", value: fingerprint },
+      ]);
+      console.log("  wrote planning:summary, planning:hash");
+    }
+  } catch (err) {
+    statsError = err;
+    console.warn(`  MHCLG stats failed (hash withheld — will retry next run): ${err.message}`);
+  }
+
+  // --- PlanIt map layer (independent of the stats) -------------------------
+  try {
+    const end = new Date();
+    const iso = (d) => d.toISOString().slice(0, 10);
+    const monthEdge = (m) => new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() - m, end.getUTCDate()));
+
+    const planitGet = async (url) => {
+      for (let attempt = 1; ; attempt++) {
+        const res = await fetch(url, { headers: { accept: "application/json" } });
+        if (res.status === 429 && attempt < 4) {
+          const wait = Number(res.headers.get("retry-after")) || 30 * attempt;
+          console.log(`    PlanIt 429 — waiting ${wait}s`);
+          await sleep(wait * 1000);
+          continue;
+        }
+        if (!res.ok) throw new Error(`PlanIt ${res.status}`);
+        return res.json();
+      }
+    };
+
+    const records = [];
+    let requests = 0;
+    outer: for (let m = 0; m < 12; m++) {
+      const from = iso(monthEdge(m + 1));
+      const to = iso(monthEdge(m));
+      for (let page = 1; ; page++) {
+        if (requests >= PLANIT_MAX_REQUESTS || records.length >= PLANIT_MAX_RECORDS) break outer;
+        requests++;
+        const body = await planitGet(
+          `https://www.planit.org.uk/api/applics/json?auth=Leeds&pg_sz=${PLANIT_PAGE_SIZE}` +
+          `&page=${page}&start_date=${from}&end_date=${to}`
+        );
+        records.push(...(body.records || []));
+        if (!(body.records || []).length || (body.to ?? 0) + 1 >= (body.total ?? 0)) break;
+        await sleep(1500); // polite paging, per PlanIt's API guidance
+      }
+      await sleep(1500);
+    }
+
+    // Boundary-day overlaps between monthly windows are deduped by `name`
+    // inside normalisePlanitApps.
+    const apps = normalisePlanitApps(records, { window: { from: iso(monthEdge(12)), to: iso(end) } });
+    console.log(`  PlanIt: ${requests} requests · ${apps.count} applications · ${apps.geocoded} geocoded · ${apps.large.length} large`);
+    if (apps.count > 0) {
+      await kvBulkPut([{ key: "planning:apps", value: JSON.stringify(apps) }]);
+      console.log("  wrote planning:apps");
+    } else {
+      console.warn("  PlanIt returned no records — keeping last-good planning:apps");
+    }
+  } catch (err) {
+    console.warn(`  PlanIt failed (map layer only — stats unaffected, keeping last-good planning:apps): ${err.message}`);
+  }
+
+  if (statsError) throw statsError; // surface in CI after PlanIt has had its go
+}
+
 function monthLabel(m) {
   const [y, mo] = m.split("-");
   const names = ["January","February","March","April","May","June","July","August","September","October","November","December"];
@@ -793,6 +1103,9 @@ async function main() {
     ["counciltax", () => refreshCouncilTax()],
     ["housing", () => refreshHousing()],
     ["schools", () => refreshSchools()],
+    ["air", () => refreshAirQuality()],
+    ["waste", () => refreshWaste()],
+    ["planning", () => refreshPlanning()],
   ];
 
   let failed = false;
