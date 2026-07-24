@@ -37,10 +37,18 @@ export function listCsvResources(dataset) {
 }
 
 // Stream a CSV download. Returns a ReadableStream of Uint8Array chunks.
+// On failure the thrown Error carries `status` and `retryAfter` (seconds, or
+// null) so callers can back off properly on a 429 instead of guessing.
 export async function streamCsv(env, url) {
   const res = await fetch(url, {
     headers: { ...authHeaders(env), accept: "text/csv" },
   });
-  if (!res.ok || !res.body) throw new Error(`CSV fetch ${res.status} ${url}`);
+  if (!res.ok || !res.body) {
+    const err = new Error(`CSV fetch ${res.status} ${url}`);
+    err.status = res.status;
+    const after = Number(res.headers.get("retry-after"));
+    err.retryAfter = Number.isFinite(after) && after > 0 ? after : null;
+    throw err;
+  }
   return res.body;
 }

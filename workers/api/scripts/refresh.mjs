@@ -145,13 +145,25 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Datamillnorth 429s under burst load (it bit the schools dataset's ~30
 // small files). Retry with a growing pause before giving up on a file.
-async function streamCsvWithRetry(url, attempts = 3) {
+// A 429 needs a much longer wait than a transient network blip — the old
+// 3s/12s ladder was far too short to clear the window, so the same files
+// failed every night. Honour Retry-After when the server sends one.
+const RATE_LIMIT_BACKOFF = [15000, 45000, 90000];
+
+async function streamCsvWithRetry(url, attempts = 4) {
   for (let i = 1; ; i++) {
     try {
       return await streamCsv(env, url);
     } catch (err) {
       if (i >= attempts) throw err;
-      const pause = 3000 * i * i;
+      const rateLimited = err.status === 429;
+      let pause = rateLimited
+        ? RATE_LIMIT_BACKOFF[Math.min(i, RATE_LIMIT_BACKOFF.length) - 1]
+        : 3000 * i * i;
+      if (rateLimited && err.retryAfter) pause = Math.max(pause, err.retryAfter * 1000);
+      // Don't sleep the whole workflow to death on a long Retry-After; the
+      // per-file cache means the next run picks up just what's missing.
+      if (pause > 120000) throw err;
       console.log(`    retrying in ${pause / 1000}s (${err.message})`);
       await sleep(pause);
     }
@@ -754,16 +766,48 @@ async function refreshSchools() {
     return;
   }
 
+  // Per-file cache of parsed rows, keyed by the same file identity that feeds
+  // the fingerprint. Without it a single 429 withheld the fingerprint, so the
+  // next run re-fetched all ~30 files, hit the rate limit again and withheld
+  // again — the "retry next run" never healed. Now a run only fetches files it
+  // has no cached result for, which keeps us far under the limit and lets the
+  // stragglers through. `null` rows (unrecognised schema) are cached too, so
+  // the dozen permanently-unparseable pre-2019 files stop being re-downloaded.
+  const fileKey = (r) => r.hash || `${r.id}:${r.size}`;
+  let cache = {};
+  if (FORCE !== "1") {
+    try {
+      const raw = await kvGet("schools:files");
+      const parsed = raw ? JSON.parse(raw) : null;
+      if (parsed && parsed.version === SCHOOLS_VERSION) cache = parsed.files || {};
+    } catch (err) {
+      console.warn(`  file cache unreadable, rebuilding: ${err.message}`);
+    }
+  }
+  const freshCache = {};
+  let cacheHits = 0;
+  let fetched = 0;
+
   let fetchFailures = 0;
   async function loadYearMap(resources, parse, label) {
     const byYear = new Map();
     for (const r of resources) {
       const year = Number((r.title.match(/20\d{2}/) || [])[0]);
       if (!year) continue;
+      const key = fileKey(r);
+      if (Object.prototype.hasOwnProperty.call(cache, key)) {
+        const rows = cache[key];
+        freshCache[key] = rows;
+        cacheHits++;
+        if (rows) byYear.set(year, rows);
+        continue;
+      }
       try {
         const records = [];
         for await (const rec of parseCsvStream(await streamCsvWithRetry(r.url))) records.push(rec);
         const rows = parse(records);
+        fetched++;
+        freshCache[key] = rows;
         if (rows) byYear.set(year, rows);
         else console.log(`  ${label} ${year}: schema not recognised, skipped ("${r.title}")`);
       } catch (err) {
@@ -794,12 +838,22 @@ async function refreshSchools() {
     );
   }
 
+  console.log(`  files: ${cacheHits} cached · ${fetched} fetched · ${fetchFailures} failed`);
+
   // On partial fetches, publish the summary but withhold the fingerprint so
-  // the next nightly run retries the missing files.
-  const writes = [{ key: "schools:summary", value: JSON.stringify(summary) }];
+  // the next nightly run retries the missing files. The file cache is always
+  // written — it holds only files seen this run, so replaced files are pruned,
+  // and it is what stops a failure from forcing a full re-fetch next time.
+  const writes = [
+    { key: "schools:summary", value: JSON.stringify(summary) },
+    {
+      key: "schools:files",
+      value: JSON.stringify({ version: SCHOOLS_VERSION, files: freshCache }),
+    },
+  ];
   if (fetchFailures === 0) writes.push({ key: "schools:hash", value: fingerprint });
   await kvBulkPut(writes);
-  console.log(`  wrote schools:summary${fetchFailures ? " (hash withheld — will retry files next run)" : ", schools:hash"}`);
+  console.log(`  wrote schools:summary, schools:files${fetchFailures ? " (hash withheld — will retry failed files next run)" : ", schools:hash"}`);
 }
 
 // Air quality: DEFRA UK-AIR hourly CSVs for Leeds Centre, one per year,

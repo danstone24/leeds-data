@@ -194,7 +194,8 @@ Two datasets with an **identical schema**, so they share one aggregator (`counts
   - Secondary allocations publish `Total Allocated / Places Available` as one cell (`270/270`) in some years, a plain number in others. PAN ≠ places available in bulge years — we use the cell's second number as "available" when present.
   - The primary preferences dataset's "Historical information" resource is excluded by title.
   - Entry year comes from the resource title (`September 2026 entry`), not the file.
-- **KV layout**: `schools:summary`, `schools:hash` (one fingerprint across all four datasets).
+  - Datamillnorth rate-limits (429) under the ~30 small files this topic pulls, even with the API token. Fetches are **cached per file** in KV (`schools:files`, keyed by resource hash), so a run only downloads files it has no cached result for — including `null` results for the unparseable pre-2019 era. Before this, one 429 withheld the fingerprint, the next run re-fetched all ~30 files, hit the limit again and withheld again: the "retry next run" never healed and the secondary competition table sat two years stale. Bump `SCHOOLS_VERSION` to invalidate the cache after a parser change.
+- **KV layout**: `schools:summary`, `schools:hash` (one fingerprint across all four datasets), `schools:files` (per-file parsed-row cache, versioned).
 - **Worker route**: `GET /api/schools/summary`
 - **Chart**: [pages/schools.html](../pages/schools.html), [assets/js/charts/schools.js](../assets/js/charts/schools.js). Demand trend by phase, most-competitive council-run primaries, places offered vs filled, spare-places share.
 
