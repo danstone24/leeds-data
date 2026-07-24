@@ -40,10 +40,17 @@ function renderStats(s) {
   document.getElementById("stat-primary").textContent = fmtNumber.format(prim.firstPrefs);
   document.getElementById("stat-secondary").textContent = fmtNumber.format(sec.firstPrefs);
 
-  const top = [...s.primary.competition, ...s.secondary.competition].sort(
-    (a, b) => b.ratio - a.ratio
-  )[0];
+  // Each phase's competition table is pinned to the latest year present in
+  // BOTH its preferences and allocations files, so the two phases can sit on
+  // different years. Tag each row with the year it actually came from and
+  // label the winner with it, rather than showing a possibly-older secondary
+  // figure as if it were current.
+  const top = [
+    ...s.primary.competition.map((r) => ({ ...r, year: s.primary.competitionYear })),
+    ...s.secondary.competition.map((r) => ({ ...r, year: s.secondary.competitionYear })),
+  ].sort((a, b) => b.ratio - a.ratio)[0];
   document.getElementById("stat-competitive").textContent = top ? `${top.ratio}×` : "—";
+  document.getElementById("comp-year").textContent = top?.year ? `for ${top.year}` : "";
 
   const latestAlloc = allocYears(s.primary).at(-1);
   document.getElementById("stat-spare").textContent = latestAlloc
