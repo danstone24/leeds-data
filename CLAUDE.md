@@ -52,7 +52,7 @@ A public website that visualises open data about Leeds — mostly **Leeds City C
 
 ```
 /
-├── claude.md             ← you are here
+├── CLAUDE.md             ← you are here
 ├── README.md             ← public-facing project description
 ├── index.html            ← homepage
 ├── assets/
@@ -185,7 +185,7 @@ See [docs/data-sources.md](docs/data-sources.md) for the curated list of dataset
 
 ## Current status
 
-**Last updated**: 2026-07-19
+**Last updated**: 2026-07-24
 
 - [x] Stack chosen, repo scaffolded
 - [x] GitHub repo created at https://github.com/danstone24/leeds-data
@@ -206,7 +206,7 @@ See [docs/data-sources.md](docs/data-sources.md) for the curated list of dataset
 
 - [x] Seventh dataset (Council tax, id `24zz5`) — live at pages/council-tax.html: band D stack by precepting authority 1993→now, annual % rise, latest charges by band. Precepts CSV has forward-filled year blocks, year-label typos, era-drifting authority names, and an on/off Adult Social Care precept row (kept in data, folded into the council share on the page). See `counciltax.js`.
 - [x] Eighth topic (Council housing — three datasets: bids `20jjj`, stock by ward `2o1gn`, tenanted stock `ep6qr`) — live at pages/housing.html: bids-per-home trend, homes advertised, shrinking-stock trend, by-ward + by-bedrooms competition, stock-mix donut. Bids span two ward eras (pre-2018 2-letter codes vs named post-2018 wards — NOT 1:1, so ward stats use the named era only); the stock CSV is two side-by-side year blocks parsed positionally and only its Grand Total row is trusted. See `housing.js`.
-- [x] Ninth topic (School places — four datasets: prefs `24l45`/`e619w`, allocations `e6qpz`/`23ym1`) — live at pages/schools.html: first-choice demand by phase, most-competitive council-run primaries, places offered vs filled, spare-places share. Header rows are detected by content (junk preamble lines, era-drifting column names); PAN/allocated only exist for community/VC schools (academies stopped reporting after 2019), so those charts are council-run primaries only and the page says so. See `schools.js`.
+- [x] Ninth topic (School places — four datasets: prefs `24l45`/`e619w`, allocations `e6qpz`/`23ym1`) — live at pages/schools.html: first-choice demand by phase, most-competitive council-run primaries, places offered vs filled, spare-places share. Header rows are detected by content (junk preamble lines, era-drifting column names); PAN/allocated only exist for community/VC schools (academies stopped reporting after 2019), so those charts are council-run primaries only and the page says so. Datamillnorth 429s under the ~30 small files this topic pulls, so parsed rows are **cached per file** in KV (`schools:files`, keyed by resource hash) — a run only downloads files it has no cached result for, and a failure no longer forces a full re-fetch next run. Bump `SCHOOLS_VERSION` to invalidate. See `schools.js`.
 
 - [x] Tenth topic (Air quality — DEFRA UK-AIR, first non-Datamillnorth source, Leeds Centre `site_id=LEED`) — live at pages/air-quality.html: annual NO₂/PM2.5/PM10 means vs UK legal limits + WHO 2021 guidelines (inline reference-line plugin), NO₂ by hour, seasonal cycle, PM10 days-over-50 vs the 35-day allowance. One CSV per year fetched directly (plain fetch, HEAD-header fingerprint); columns matched by name after stripping `<sub>` HTML (schema drifts, 2008 has no tags); blank = monitor down, so annual means below 75% capture are withheld and provisional (P/P*) years flagged. See `air.js`.
 - [x] Eleventh topic (Recycling & waste — two DEFRA sources, no Datamillnorth: LA collected waste ODS + fly-tipping incidents/actions CSVs) — live at pages/recycling.html: Leeds vs England recycling rate, landfill collapse after the RERF opened (~2016), fly-tipping trend, incidents by land type, enforcement actions vs incidents. Hand-rolled ODS extraction in `waste.js` (zip central-directory reader + `inflateRawSync`; `node:zlib` imported lazily so the Worker stays deployable) — `table:number-columns-repeated` MUST be expanded or columns misalign; ODS values are strings ("34.7%", "-" as null); fly-tipping CSVs can carry NUL/BOM bytes and a line-2 header; Leeds matched by ONS code `E08000035` never by name. Both source URLs re-discovered every run (GOV.UK content API for the ODS; data.gov.uk page scrape for the CSVs — the content API has no attachments for that page).

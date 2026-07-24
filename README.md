@@ -33,7 +33,7 @@ npx wrangler dev
 
 ## Contributing
 
-See [claude.md](claude.md) for architecture, conventions, and how to add a new dataset/chart.
+See [CLAUDE.md](CLAUDE.md) for architecture, conventions, and how to add a new dataset/chart.
 
 ## Data
 
