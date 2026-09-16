@@ -6,7 +6,7 @@
     <title>About &amp; methodology | Leeds Data</title>
     <meta
       name="description"
-      content="What Leeds Data is, where the numbers come from, how the site is built, and how we handle the quirks in each dataset."
+      content="What Leeds Data is, where the numbers come from, how the site is built, and how I handle the quirks in each dataset."
     />
     <meta name="theme-color" content="#f9f6ef" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#1b1a17" media="(prefers-color-scheme: dark)" />
@@ -48,8 +48,7 @@
           <h1 class="hero-title">About this site</h1>
           <p class="hero-lede">
             Leeds Data turns the open data that Leeds City Council publishes into
-            charts anyone can read. No spreadsheets, no jargon, just the numbers
-            behind how the city is doing.
+            charts anyone can read, without opening a spreadsheet.
           </p>
         </div>
       </section>
@@ -58,18 +57,15 @@
         <div class="prose">
           <h2>Why it exists</h2>
           <p>
-            The council publishes hundreds of datasets, on potholes, spending,
-            road safety, traffic, footfall and more, at
-            <a href="https://datamillnorth.org" rel="noopener">Datamillnorth.org</a>.
-            It's genuinely open, which is great, but most of it is raw CSV files
-            that only make sense if you're comfortable with a spreadsheet. This
-            site exists so that residents, journalists and councillors can see at
-            a glance how Leeds is performing, without doing any of that work.
+            The council publishes hundreds of datasets at
+            <a href="https://datamillnorth.org" rel="noopener">Datamillnorth.org</a>,
+            on potholes, spending, road safety, traffic, footfall and more. Most
+            of it is raw CSV. I built this site so anyone can see how Leeds is
+            doing without opening a spreadsheet.
           </p>
           <p>
-            Every chart is built to answer a plain question: <em>are our roads
-            getting safer? how fast are potholes fixed? do you still need a car?</em>
-            rather than just dumping numbers on a page.
+            Every chart answers a plain question: <em>are our roads getting
+            safer? how fast are potholes fixed? do you still need a car?</em>
           </p>
 
           <h2>Where the numbers come from</h2>
@@ -81,7 +77,7 @@
             waste (DEFRA's local-authority returns) and planning (MHCLG's
             quarterly statistics, plus a map layer from the volunteer-run
             <a href="https://www.planit.org.uk/" rel="noopener">PlanIt</a>).
-            We don't add our own estimates or opinions to
+            I don't add my own estimates or opinions to
             the figures. Each topic page links back to the exact dataset it uses,
             and shows when it was last updated, so you can always check the source
             yourself. The data is published under the
@@ -93,24 +89,23 @@
             or annually, depending on the dataset.
           </p>
 
-          <h2>How we handle the numbers</h2>
+          <h2>How I handle the numbers</h2>
           <p>
             Council data is often messy: files change format over the years,
             labels are spelled inconsistently, and some records are incomplete.
-            We clean and standardise where it's clearly safe to, and we're honest
-            about the limits. Two principles guide everything:
+            I clean and standardise where it's clearly safe to, and say so where
+            it isn't. Two rules apply throughout:
           </p>
           <ul>
             <li>
-              <strong>We show what the council published. We don't invent data.</strong>
-              Where records are missing or unclear, we say so rather than filling
-              gaps with guesses.
+              <strong>Show what the council published.</strong>
+              Where records are missing or unclear, the page says so rather than
+              filling gaps with guesses.
             </li>
             <li>
-              <strong>We make fair comparisons.</strong> When the number of
+              <strong>Compare like with like.</strong> When the number of
               sensors or cameras behind a dataset changes over time, raw totals
-              become misleading, so we average per sensor instead, which keeps a
-              trend fair as equipment comes and goes.
+              mislead, so the charts average per sensor instead.
             </li>
           </ul>
 
@@ -171,12 +166,11 @@
         <div class="prose">
           <h2>How the site is built</h2>
           <p>
-            Leeds Data is a small, deliberately simple site. It's a set of plain web
-            pages hosted on a global content network, with a nightly job that
-            downloads any new council data, crunches it, and stores ready-made
-            summaries for the pages to load. There's no tracking and no adverts.
-            The whole thing is open source. You can read every line, including the
-            exact steps used to process each dataset, on
+            Leeds Data is a set of plain web pages on a content network, plus a
+            nightly job that downloads any new data, aggregates it, and stores
+            summaries for the pages to load. No tracking, no adverts. It is
+            open source, including the exact steps used to process each
+            dataset, on
             <a href="https://github.com/danstone24/leeds-data" rel="noopener">GitHub</a>.
           </p>
 
@@ -185,8 +179,8 @@
             Spotted a mistake, or want a particular dataset turned into a chart?
             The best place to raise it is the
             <a href="https://github.com/danstone24/leeds-data/issues" rel="noopener">GitHub issues page</a>.
-            Leeds Data is an independent project built by Dan Stone. It isn't
-            affiliated with or endorsed by Leeds City Council.
+            I'm Dan Stone. Leeds Data is an independent project, not affiliated
+            with or endorsed by Leeds City Council.
           </p>
         </div>
       </section>

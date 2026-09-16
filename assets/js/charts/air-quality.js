@@ -109,7 +109,7 @@ function renderStats(s) {
   document.getElementById("summary-line").innerHTML =
     `The air over central Leeds averaged <strong>${fmt1.format(latest?.no2.mean ?? 0)} µg/m³</strong> of ` +
     `nitrogen dioxide in ${latest?.year}, <strong>${Math.abs(changePct ?? 0)}% ${changePct <= 0 ? "less" : "more"}</strong> than in ${first?.year}, ` +
-    `and comfortably inside the UK legal limit of ${s.limits.no2.uk}. But legal isn't the same as healthy: ` +
+    `and inside the UK legal limit of ${s.limits.no2.uk}. But legal isn't the same as healthy: ` +
     `both nitrogen dioxide and fine particles ${overWho ? "still sit well above" : "are near"} the World Health ` +
     `Organization's guidelines for clean air.`;
 

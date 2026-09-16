@@ -129,6 +129,12 @@ A public website that visualises open data about Leeds — mostly **Leeds City C
   used as "series 4"; single-series charts get no legend; charts don't animate.
 - All charts must be readable on mobile (320px+) and respect `prefers-reduced-motion`.
 
+**Copy (September 2026 copy review)**
+- No em dashes anywhere visitors can read, including strings the chart scripts write. Full stop or comma instead.
+- A chart caption describes the chart. Methodology caveats live once, in the notes paragraph under the charts; the About page keeps one line per topic and links to the page.
+- Never hardcode a figure or ranking the page computes. If a caption needs a number, the chart script writes it from the same summary the chart uses.
+- Say the number, not the feeling: no "actually", "sharply", "comfortably", "overwhelming". First person singular on the About page; "the site" or "the charts" elsewhere, not "we".
+
 **Accessibility**
 - Every chart has a text summary nearby ("Potholes reported rose 18% in 2025 vs 2024…").
 - Colour is never the only signal. Use patterns/labels too.
