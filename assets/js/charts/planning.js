@@ -305,7 +305,7 @@ function renderMap(payload) {
   document.getElementById("map-caption").textContent =
     `${fmtNumber.format(points.length)} planning applications from the last 12 months, mapped. ` +
     `Zoom in to split the clusters and click a dot for the details and a link to the council's ` +
-    `planning portal. This layer comes from the volunteer-run PlanIt service, not official statistics.`;
+    `planning portal.`;
 }
 
 // Fig 5 — recent large applications table -----------------------------------

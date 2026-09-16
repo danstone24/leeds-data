@@ -122,8 +122,7 @@ function renderCompetition(primary) {
   const top = primary.competition.slice(0, 12);
   document.getElementById("competition-caption").textContent =
     `First-choice applications for every reception place at council-run primaries, September ` +
-    `${primary.competitionYear} entry. Academies, free schools and most faith schools set their ` +
-    `own admissions and don't publish these numbers, so they can't be ranked here.`;
+    `${primary.competitionYear} entry. Academies and free schools don't publish these numbers.`;
   new Chart(document.getElementById("competition-chart"), {
     type: "bar",
     data: {
