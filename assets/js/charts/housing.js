@@ -22,7 +22,7 @@ async function bootstrap() {
   } catch (err) {
     console.error(err);
     document.getElementById("summary-line").textContent =
-      "Sorry — the council housing data couldn't be loaded right now. Please try again later.";
+      "Sorry, the council housing data couldn't be loaded right now. Please try again later.";
   }
 }
 
@@ -43,7 +43,7 @@ function renderStats(s) {
 
   document.getElementById("summary-line").innerHTML =
     `On average, <strong>${Math.round(latest.meanEoi)} households</strong> bid on every council home advertised ` +
-    `in Leeds in ${year} — up from <strong>${Math.round(first.meanEoi)}</strong> in ${first.year}. ` +
+    `in Leeds in ${year}, up from <strong>${Math.round(first.meanEoi)}</strong> in ${first.year}. ` +
     `Only <strong>${fmtNumber.format(latest.lets)}</strong> homes came up all year, from a stock that has shrunk ` +
     `by <strong>${fmtNumber.format(s.stock.first.total - s.stock.latest.total)}</strong> since ${s.stock.first.fy}.`;
 
@@ -162,7 +162,7 @@ function renderStock(yearly) {
 function renderWards(byWard, year) {
   document.getElementById("ward-caption").textContent =
     `Average bids per advertised home by ward in ${year}. Inner-city wards see the longest ` +
-    `queues; the outer suburbs the shortest — but nowhere in Leeds is a council home easy to get.`;
+    `queues; the outer suburbs the shortest, but nowhere in Leeds is a council home easy to get.`;
   new Chart(document.getElementById("ward-chart"), {
     type: "bar",
     data: {
@@ -192,7 +192,7 @@ function renderWards(byWard, year) {
 
 function renderBeds(byBedrooms, year) {
   document.getElementById("beds-caption").textContent =
-    `Average bids by property size in ${year}. Three-bed family homes rarely come up — ` +
+    `Average bids by property size in ${year}. Three-bed family homes rarely come up. ` +
     `when they do, the queue is the longest of all.`;
   new Chart(document.getElementById("beds-chart"), {
     type: "bar",

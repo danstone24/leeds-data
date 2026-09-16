@@ -26,7 +26,7 @@ async function bootstrap() {
   } catch (err) {
     console.error(err);
     document.getElementById("summary-line").textContent =
-      "Sorry — the footfall data couldn't be loaded right now. Please try again later.";
+      "Sorry, the footfall data couldn't be loaded right now. Please try again later.";
   }
 }
 
@@ -54,8 +54,8 @@ function renderStats(s) {
   if (pre && latest && pre.meanDaily) {
     const rec = latest.meanDaily / pre.meanDaily - 1;
     line += rec < -0.02
-      ? `In ${latest.year} it was still <strong>${fmtSignedPct(rec).replace("−", "down ")}</strong> on its ${pre.year} level — the city centre hasn't fully returned to how busy it was before the pandemic.`
-      : `By ${latest.year} it was <strong>${fmtSignedPct(rec).replace("+", "up ").replace("−", "down ")}</strong> versus ${pre.year} — broadly back to its pre-pandemic level.`;
+      ? `In ${latest.year} it was still <strong>${fmtSignedPct(rec).replace("−", "down ")}</strong> on its ${pre.year} level. The city centre hasn't fully returned to how busy it was before the pandemic.`
+      : `By ${latest.year} it was <strong>${fmtSignedPct(rec).replace("+", "up ").replace("−", "down ")}</strong> versus ${pre.year}, broadly back to its pre-pandemic level.`;
   } else {
     line += `The busiest spot is <strong>${s.locations[0]?.name || "the main shopping streets"}</strong>.`;
   }

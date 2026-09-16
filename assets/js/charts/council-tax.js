@@ -25,7 +25,7 @@ async function bootstrap() {
   } catch (err) {
     console.error(err);
     document.getElementById("summary-line").textContent =
-      "Sorry — the council tax data couldn't be loaded right now. Please try again later.";
+      "Sorry, the council tax data couldn't be loaded right now. Please try again later.";
   }
 }
 
@@ -44,7 +44,7 @@ function renderStats(s) {
     `${Math.round((councilShare(latest) / latest.bandD.total) * 100)}%`;
 
   document.getElementById("summary-line").innerHTML =
-    `A band D household in Leeds pays <strong>${fmtMoneyExact.format(latest.bandD.total)}</strong> in ${latest.year} — ` +
+    `A band D household in Leeds pays <strong>${fmtMoneyExact.format(latest.bandD.total)}</strong> in ${latest.year}, ` +
     `up <strong>${fmtPct(s.changeYoY).replace("+", "")}</strong> on last year and nearly four times the ${first.year} bill. ` +
     `About <strong>${Math.round((councilShare(latest) / latest.bandD.total) * 100)}p in every pound</strong> goes to the council; ` +
     `the rest funds West Yorkshire's police and fire services.`;
