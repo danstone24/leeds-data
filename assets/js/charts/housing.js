@@ -193,7 +193,7 @@ function renderWards(byWard, year) {
 function renderBeds(byBedrooms, year) {
   document.getElementById("beds-caption").textContent =
     `Average bids by property size in ${year}. Three-bed family homes rarely come up. ` +
-    `when they do, the queue is the longest of all.`;
+    `When they do, the queue is the longest of all.`;
   new Chart(document.getElementById("beds-chart"), {
     type: "bar",
     data: {
