@@ -126,6 +126,15 @@ function renderLets(yearly) {
 
 function renderStock(yearly) {
   const c = series(1)[0];
+  const first = yearly[0];
+  const last = yearly[yearly.length - 1];
+  if (first && last && first !== last) {
+    const everyYearDown = yearly.every((y, i) => i === 0 || y.total < yearly[i - 1].total);
+    document.getElementById("stock-caption").textContent =
+      `The council's total housing stock at the end of each financial year. ` +
+      `From ${fmtNumber.format(first.total)} in ${first.fy} to ${fmtNumber.format(last.total)} in ${last.fy}` +
+      (everyYearDown ? ", falling in every year on record." : ".");
+  }
   new Chart(document.getElementById("stock-chart"), {
     type: "line",
     data: {
@@ -159,10 +168,13 @@ function renderStock(yearly) {
   });
 }
 
-function renderWards(byWard, year) {
+function renderWards(byWard, year) {  const top = byWard[0];
+  const bottom = byWard[byWard.length - 1];
   document.getElementById("ward-caption").textContent =
-    `Average bids per advertised home by ward in ${year}. Inner-city wards see the longest ` +
-    `queues; the outer suburbs the shortest, but nowhere in Leeds is a council home easy to get.`;
+    `Average bids per advertised home by ward in ${year}.` +
+    (top && bottom && top !== bottom
+      ? ` ${top.ward} tops the list at ${Math.round(top.meanEoi)} bids per home; the lowest, ${bottom.ward}, still averages ${Math.round(bottom.meanEoi)}.`
+      : "");
   new Chart(document.getElementById("ward-chart"), {
     type: "bar",
     data: {

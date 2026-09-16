@@ -140,6 +140,11 @@ function renderTrend(trend) {
 
 function renderWards(wards) {
   const t = tokens();
+  const top = wards[0];
+  if (top) {
+    document.getElementById("ward-caption").textContent =
+      `The wards with the most recorded potholes. ${top.name} has the most, with ${fmtNumber.format(top.count)} recorded.`;
+  }
   new Chart(document.getElementById("ward-chart"), {
     type: "bar",
     data: {
