@@ -116,136 +116,55 @@
 
           <h2>How each dataset is treated</h2>
           <p>
-            A short, plain-English note on the main quirk behind each page:
+            One line on the main quirk behind each page. The full notes sit
+            under each page's charts.
           </p>
         </div>
 
         <ul class="method-list">
           <li>
             <h3><a href="/pages/spending.html">Council spending</a></h3>
-            <p>
-              Taken directly from the council's transaction files. Most rows leave
-              the department blank, so we infer it from the service area where
-              there's a clear match; what we can't place is shown as "other".
-              Supplier names aren't standardised, so the same company can appear
-              under slightly different spellings.
-            </p>
+            <p>Most rows leave the department blank, so it is inferred from the service area. Supplier names are not deduplicated.</p>
           </li>
           <li>
             <h3><a href="/pages/potholes.html">Potholes &amp; road repairs</a></h3>
-            <p>
-              One row per recorded pothole. "Time to fix" is the gap between the
-              report and completion dates; potholes still awaiting repair are left
-              out of that figure. Locations are converted from Ordnance Survey grid
-              references to map coordinates; a few records have no location and
-              don't appear on the map, but still count in the totals.
-            </p>
+            <p>One row per recorded pothole. "Time to fix" excludes potholes still awaiting repair.</p>
           </li>
           <li>
             <h3><a href="/pages/collisions.html">Road safety &amp; collisions</a></h3>
-            <p>
-              One row per injured casualty, from police records, so a single crash
-              can produce several. The council changed its file format around 2017.
-              Older years spell severity out, newer ones use codes, and we
-              standardise them. Only reported injuries appear; minor knocks that go
-              unreported don't.
-            </p>
+            <p>One row per injured casualty, so a single crash can produce several. Unreported injuries never appear.</p>
           </li>
           <li>
             <h3><a href="/pages/getting-around.html">Getting around (cycling &amp; traffic)</a></h3>
-            <p>
-              Counts from recorders on routes around Leeds. The set of working
-              recorders changes month to month, so we use the average count per
-              recorder per day rather than raw totals. Cycling is very seasonal, so
-              years with only a few months of data are treated with caution.
-            </p>
+            <p>Average count per recorder per day, not raw totals, because the set of working recorders changes month to month.</p>
           </li>
           <li>
             <h3><a href="/pages/footfall.html">City centre footfall</a></h3>
-            <p>
-              Eight cameras count people passing, hour by hour. The published files
-              overlap heavily and have changed format several times since 2008, and
-              cameras have been renamed; we merge everything, de-duplicate each hour,
-              and keep the council's later, revised (higher) figures where they
-              conflict. As with the traffic counters, we average per camera.
-            </p>
+            <p>Overlapping files are merged and de-duplicated per hour, then averaged per camera for the same reason.</p>
           </li>
           <li>
             <h3><a href="/pages/council-tax.html">Council tax</a></h3>
-            <p>
-              One official table of charges per band going back to 1993. All
-              figures are cash amounts, not adjusted for inflation, and show the
-              headline charge before discounts. The adult social care precept is
-              only listed separately in some years, so we fold it into the
-              council's share throughout. Parish top-ups aren't included.
-            </p>
+            <p>Cash amounts, headline charge before discounts. The adult social care precept is folded into the council's share.</p>
           </li>
           <li>
             <h3><a href="/pages/housing.html">Council housing</a></h3>
-            <p>
-              Bids are expressions of interest through the Leeds Homes lettings
-              system. One household can bid on many homes, so they measure
-              competition, not the length of the waiting list. Ward boundaries
-              changed in 2018 and older files use the old wards, so by-ward
-              figures cover recent years only, while citywide trends use every
-              year published.
-            </p>
+            <p>Bids measure competition, not the waiting list. By-ward figures use the post-2018 wards only.</p>
           </li>
           <li>
             <h3><a href="/pages/schools.html">School places</a></h3>
-            <p>
-              Application counts cover every state school in Leeds, but admission
-              numbers and places filled are only published for community and
-              voluntary-controlled schools. Academies and free schools run their
-              own admissions. Anything comparing applications to places therefore
-              describes council-run schools only, and mostly primaries, since
-              nearly all Leeds secondaries are academies.
-            </p>
+            <p>Places offered and filled are only published for council-run schools, so those charts are mostly primaries.</p>
           </li>
           <li>
             <h3><a href="/pages/air-quality.html">Air quality</a></h3>
-            <p>
-              The first page not built on council data: hourly readings from
-              DEFRA's national monitoring network, at the Leeds Centre station,
-              a "background" site, so kerbside air on busy roads will be worse.
-              Annual averages are only shown for years where the monitor ran at
-              least 75% of the time, following DEFRA convention, and the newest
-              readings are marked provisional until DEFRA checks them. Levels
-              are compared against both UK legal limits and the World Health
-              Organization's stricter 2021 health guidelines, which carry no
-              legal force.
-            </p>
+            <p>DEFRA's Leeds Centre background monitor. Years under 75% coverage are withheld and the latest readings are provisional.</p>
           </li>
           <li>
             <h3><a href="/pages/recycling.html">Recycling &amp; waste</a></h3>
-            <p>
-              This page's figures come from DEFRA, not Datamillnorth. There is
-              no live council dataset for this topic. Recycling, landfill and
-              residual-waste rates are DEFRA's annual local-authority waste
-              statistics, computed on a consistent national method from
-              councils' WasteDataFlow returns (published as a spreadsheet we
-              read directly); fly-tipping incidents and enforcement actions are
-              DEFRA's per-authority returns. Everything covers the council area
-              as a whole. Nothing is published ward by ward. DEFRA's own
-              caveat, repeated on the page: fly-tipping counts partly reflect
-              how councils record and report incidents, not just how much is
-              actually dumped.
-            </p>
+            <p>DEFRA statistics for the whole council area. Fly-tipping counts partly reflect how incidents are reported.</p>
           </li>
           <li>
             <h3><a href="/pages/planning.html">Planning applications</a></h3>
-            <p>
-              Built from two sources with different jobs. Every figure comes
-              from MHCLG's quarterly planning returns (the PS1/PS2 open-data
-              tables), official statistics covering every English planning
-              authority, with Leeds picked out by its authority code. The map
-              and the large-applications list come from
-              <a href="https://www.planit.org.uk/" rel="noopener">PlanIt</a>,
-              a free, volunteer-run service that compiles applications from
-              council planning portals; it powers no statistics on the page,
-              and if it's ever unavailable the map simply drops out while
-              every chart keeps working.
-            </p>
+            <p>MHCLG quarterly returns for every chart. The map comes from PlanIt and is a guide, not statistics.</p>
           </li>
         </ul>
 
