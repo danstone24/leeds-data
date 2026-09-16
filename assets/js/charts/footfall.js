@@ -178,6 +178,10 @@ function renderWeekday(byWeekday) {
 function renderLocations(locations) {
   const t = tokens();
   const top = locations.slice(0, 10);
+  if (top[0]) {
+    document.getElementById("loc-caption").textContent =
+      `Share of recent footfall by camera location. ${top[0].name} alone accounts for ${Math.round(top[0].share * 100)}%.`;
+  }
   new Chart(document.getElementById("loc-chart"), {
     type: "bar",
     data: {

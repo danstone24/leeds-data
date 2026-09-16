@@ -20,7 +20,7 @@ async function showApiStatus() {
         new Date(health.updated).toLocaleString("en-GB");
     }
   } catch {
-    // API not deployed yet — leave the default "under construction" message.
+    // API unreachable: leave the default "temporarily unavailable" message.
   }
 }
 

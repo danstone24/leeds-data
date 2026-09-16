@@ -879,29 +879,6 @@ ul {
   text-decoration-color: var(--accent);
 }
 
-.topic-status {
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink-muted);
-}
-
-.topic-status.live {
-  color: var(--accent);
-}
-
-.topic-status.live::before {
-  content: "";
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--status-good);
-  margin-right: var(--space-2);
-  vertical-align: 1px;
-}
-
 /* ----- Footer (colophon) ----- */
 .site-footer {
   border-top: 1px solid var(--rule);

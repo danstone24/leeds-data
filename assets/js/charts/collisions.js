@@ -120,6 +120,12 @@ function renderKsi(yearly) {
 
 function renderClass(yearly) {
   const t = tokens();
+  const latest = yearly[yearly.length - 1];
+  if (latest && latest.casualties) {
+    document.getElementById("class-caption").textContent =
+      `Casualties split into drivers and riders, their passengers, and pedestrians. ` +
+      `In ${latest.year}, pedestrians were ${Math.round((latest.pedestrian / latest.casualties) * 100)}% of casualties.`;
+  }
   const slots = series(3); // blue, green, magenta — fixed order, never cycled
   new Chart(document.getElementById("class-chart"), {
     type: "bar",
