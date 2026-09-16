@@ -137,9 +137,9 @@ function populatePeriodPicker(cat) {
   }
 }
 
-// "Year to date — 2026" → "2026"
+// "Year to date 2026" → "2026" (older KV blobs used "Year to date — 2026")
 function stripTaxYearMonths(label) {
-  return label.replace(/^Year to date — /, "");
+  return label.replace(/^Year to date (— )?/, "");
 }
 // Period entry from /api/spending/periods → short chip label, e.g. "2025–26"
 function shortTaxYearLabel(p) {
@@ -169,9 +169,10 @@ async function loadPeriod(periodId) {
 function renderHero(s) {
   const topUnit = s.byOrganisationalUnit[0];
   const topShare = topUnit ? fmtPct(topUnit.share) : "—";
-  const periodWord = s.periodKind === "month" ? "spent" : "spent across this period";
+  // Year-to-date reads as "So far in 2026"; every other period uses its label as-is.
+  const opener = s.periodKind === "ytd" ? `So far in ${(s.label.match(/\d{4}/) || ["this year"])[0]}` : `In ${s.label}`;
   document.getElementById("summary-line").textContent =
-    `In ${s.label}, Leeds City Council ${periodWord} ${fmtCurrency.format(s.totalAmount)} ` +
+    `${opener}, Leeds City Council spent ${fmtCurrency.format(s.totalAmount)} ` +
     `across ${fmtNumber.format(s.transactionCount)} transactions. ` +
     `${topUnit?.name ?? "—"} was the biggest department, accounting for ${topShare} of all spend.`;
 }
@@ -253,7 +254,7 @@ function renderDonut({ labels, values }, onClick) {
           callbacks: {
             label: (ctx) => `${ctx.label}: ${fmtCurrency.format(ctx.parsed)}`,
             afterLabel: (ctx) =>
-              folded.map[ctx.dataIndex] === -1 ? "Grouped small entries — no drill-down" : "",
+              folded.map[ctx.dataIndex] === -1 ? "Grouped small entries, no drill-down" : "",
           },
         },
       },
@@ -330,7 +331,7 @@ async function showTransactions(s, unit, division, purpose) {
   if (/^Other purposes \(/.test(purpose.name)) {
     openTransactionsPanel({
       title,
-      caption: "This bucket aggregates the long tail of small purposes — there's no single transaction list for it.",
+      caption: "This bucket aggregates the long tail of small purposes. There's no single transaction list for it.",
       rows: [],
     });
     return;

@@ -25,7 +25,7 @@ async function bootstrap() {
   } catch (err) {
     console.error(err);
     document.getElementById("summary-line").textContent =
-      "Sorry — the school places data couldn't be loaded right now. Please try again later.";
+      "Sorry, the school places data couldn't be loaded right now. Please try again later.";
   }
 }
 
@@ -62,7 +62,7 @@ function renderStats(s) {
   document.getElementById("summary-line").innerHTML =
     `Families made <strong>${fmtNumber.format(prim.firstPrefs)}</strong> first-choice applications for primary ` +
     `places and <strong>${fmtNumber.format(sec.firstPrefs)}</strong> for secondary places for September ${prim.year}. ` +
-    `Primary demand has ${dir} since ${primFirst.year} as the birth rate falls — while at council-run primaries, ` +
+    `Primary demand has ${dir} since ${primFirst.year} as the birth rate falls, while at council-run primaries, ` +
     `<strong>${latestAlloc ? Math.round((latestAlloc.underSubscribed / latestAlloc.allocSchools) * 100) : "—"}%</strong> ` +
     `of schools no longer fill their reception class.`;
 

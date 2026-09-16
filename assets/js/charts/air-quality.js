@@ -63,7 +63,7 @@ async function bootstrap() {
   } catch (err) {
     console.error(err);
     document.getElementById("summary-line").textContent =
-      "Sorry — the air quality data couldn't be loaded right now. Please try again later.";
+      "Sorry, the air quality data couldn't be loaded right now. Please try again later.";
   }
 }
 
@@ -108,7 +108,7 @@ function renderStats(s) {
   const overWho = latest && latest.no2.mean > s.limits.no2.who;
   document.getElementById("summary-line").innerHTML =
     `The air over central Leeds averaged <strong>${fmt1.format(latest?.no2.mean ?? 0)} µg/m³</strong> of ` +
-    `nitrogen dioxide in ${latest?.year} — <strong>${Math.abs(changePct ?? 0)}% ${changePct <= 0 ? "less" : "more"}</strong> than in ${first?.year}, ` +
+    `nitrogen dioxide in ${latest?.year}, <strong>${Math.abs(changePct ?? 0)}% ${changePct <= 0 ? "less" : "more"}</strong> than in ${first?.year}, ` +
     `and comfortably inside the UK legal limit of ${s.limits.no2.uk}. But legal isn't the same as healthy: ` +
     `both nitrogen dioxide and fine particles ${overWho ? "still sit well above" : "are near"} the World Health ` +
     `Organization's guidelines for clean air.`;
@@ -169,11 +169,11 @@ function renderHero(s) {
       plugins: {
         referenceLines: {
           lines: [
-            { value: s.limits.no2.uk, label: `UK legal limit — NO₂ & PM10 (${s.limits.no2.uk})`, color: t.inkMuted, dash: [5, 4] },
-            { value: s.limits.pm25.uk, label: `UK limit — PM2.5 (${s.limits.pm25.uk})`, color: c2, dash: [5, 4] },
-            { value: s.limits.pm10.who, label: `WHO — PM10 (${s.limits.pm10.who})`, color: c3, dash: [2, 3] },
-            { value: s.limits.no2.who, label: `WHO — NO₂ (${s.limits.no2.who})`, color: c1, dash: [2, 3] },
-            { value: s.limits.pm25.who, label: `WHO — PM2.5 (${s.limits.pm25.who})`, color: c2, dash: [2, 3], labelBelow: true },
+            { value: s.limits.no2.uk, label: `UK legal limit, NO₂ & PM10 (${s.limits.no2.uk})`, color: t.inkMuted, dash: [5, 4] },
+            { value: s.limits.pm25.uk, label: `UK limit, PM2.5 (${s.limits.pm25.uk})`, color: c2, dash: [5, 4] },
+            { value: s.limits.pm10.who, label: `WHO, PM10 (${s.limits.pm10.who})`, color: c3, dash: [2, 3] },
+            { value: s.limits.no2.who, label: `WHO, NO₂ (${s.limits.no2.who})`, color: c1, dash: [2, 3] },
+            { value: s.limits.pm25.who, label: `WHO, PM2.5 (${s.limits.pm25.who})`, color: c2, dash: [2, 3], labelBelow: true },
           ],
         },
         tooltip: {

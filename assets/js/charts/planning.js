@@ -26,7 +26,7 @@ async function bootstrap() {
   } catch (err) {
     console.error(err);
     document.getElementById("summary-line").textContent =
-      "Sorry — the planning data couldn't be loaded right now. Please try again later.";
+      "Sorry, the planning data couldn't be loaded right now. Please try again later.";
     return;
   }
   // The map layer is third-party and heavier — load it after the page is
@@ -39,7 +39,7 @@ async function bootstrap() {
     .catch((err) => {
       console.error(err);
       document.getElementById("map-caption").textContent =
-        "The applications map is temporarily unavailable — the official statistics above are unaffected.";
+        "The applications map is temporarily unavailable. The official statistics above are unaffected.";
     });
 }
 
@@ -65,7 +65,7 @@ function renderStats(s) {
     `${t.quarter} and approved <strong>${t.approvalShare !== null ? fmtPct(t.approvalShare) : "most"}</strong> of them` +
     `${t.inTimeShare !== null ? `, with ${fmtPct(t.inTimeShare)} decided within the target time` : ""}. ` +
     `Over the last year <strong>${fmtNumber.format(t.majorsLastYear)}</strong> major schemes were decided. ` +
-    `Refusal is the exception — and the big schemes face the toughest odds.`;
+    `Refusal is the exception, and the big schemes face the toughest odds.`;
 
   const updated = s.updated
     ? new Date(s.updated).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
@@ -260,7 +260,7 @@ function renderMap(payload) {
   const points = payload.apps || [];
   if (!points.length) {
     document.getElementById("map-caption").textContent =
-      "The applications map is temporarily unavailable — the official statistics above are unaffected.";
+      "The applications map is temporarily unavailable. The official statistics above are unaffected.";
     return;
   }
   const t = tokens();
@@ -289,7 +289,7 @@ function renderMap(payload) {
     });
     const when = decided ? `Decided ${fmtDate(decided)}` : start ? `Received ${fmtDate(start)}` : null;
     marker.bindPopup(
-      `<strong>${esc(type)}${size ? ` · ${esc(size)}` : ""}</strong> — ${esc(state)}<br>` +
+      `<strong>${esc(type)}${size ? ` · ${esc(size)}` : ""}</strong>: ${esc(state)}<br>` +
         `${esc(desc)}` +
         (when ? `<br>${esc(when)}` : "") +
         (url ? `<br><a href="${esc(url)}" rel="noopener" target="_blank">View the application</a>` : ""),

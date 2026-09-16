@@ -202,7 +202,7 @@ function planPeriods(months) {
       periods.push({
         id: `ytd:${latestYear}`,
         kind: "ytd",
-        label: `Year to date — ${latestYear}`,
+        label: `Year to date ${latestYear}`,
         months: ytdMonths,
       });
     }

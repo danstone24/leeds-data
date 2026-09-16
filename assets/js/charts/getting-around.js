@@ -44,7 +44,7 @@ async function bootstrap() {
   } catch (err) {
     console.error(err);
     document.getElementById("summary-line").textContent =
-      "Sorry — the cycling and traffic data couldn't be loaded right now. Please try again later.";
+      "Sorry, the cycling and traffic data couldn't be loaded right now. Please try again later.";
   }
 }
 
@@ -192,10 +192,10 @@ function renderStats(cycle, traffic) {
       `${label} is <strong>${fmtSignedPct(ch).replace("−", "down ").replace("+", "up ")}</strong>`;
     document.getElementById("summary-line").innerHTML =
       `Comparing ${latestYear || "recent years"} with ${baseYear}, ${phrase("cycling", cChange)} ` +
-      `while ${phrase("car traffic", tChange)} — measured as the average daily count per counter across Leeds.`;
+      `while ${phrase("car traffic", tChange)}, measured as the average daily count per counter across Leeds.`;
   } else {
     document.getElementById("summary-line").textContent =
-      "There isn't yet enough overlapping data to compare cycling and traffic trends — check back after the next refresh.";
+      "There isn't yet enough overlapping data to compare cycling and traffic trends. Check back after the next refresh.";
   }
 
   // Busiest cycling month.

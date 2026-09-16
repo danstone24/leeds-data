@@ -38,7 +38,7 @@ async function bootstrap() {
   } catch (err) {
     console.error(err);
     document.getElementById("summary-line").textContent =
-      "Sorry — the pothole data couldn't be loaded right now. Please try again later.";
+      "Sorry, the pothole data couldn't be loaded right now. Please try again later.";
   }
 }
 
@@ -55,7 +55,7 @@ function renderStats(s) {
   document.getElementById("summary-line").innerHTML =
     `Leeds has recorded <strong>${fmtNumber.format(s.totalRecorded)}</strong> potholes since ${since}. ` +
     `<strong>${fmtPct(s.fixedShare)}</strong> have been repaired, typically within ` +
-    `<strong>${s.medianFixDays} days</strong> — though the slowest tenth took over ${s.p90FixDays}. ` +
+    `<strong>${s.medianFixDays} days</strong>. The slowest tenth took over ${s.p90FixDays}. ` +
     `Repairs have cost <strong>${fmtMoneyShort(s.totalCost)}</strong> so far.`;
 
   const updated = s.updated ? new Date(s.updated).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "—";
@@ -99,7 +99,7 @@ function renderMap(points) {
       open
         ? "Awaiting repair"
         : code >= 0
-        ? `Repaired — ${code} ${code === 1 ? "day" : "days"} after being recorded`
+        ? `Repaired ${code} ${code === 1 ? "day" : "days"} after being recorded`
         : "Repaired",
     );
     return marker;

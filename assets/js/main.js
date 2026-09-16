@@ -16,7 +16,7 @@ async function showApiStatus() {
     const health = await pingApi();
     if (health?.ok) {
       status.innerHTML =
-        '<span class="status-dot"></span> Live — last data refresh ' +
+        '<span class="status-dot"></span> Live. Last data refresh ' +
         new Date(health.updated).toLocaleString("en-GB");
     }
   } catch {

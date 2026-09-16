@@ -21,7 +21,7 @@ async function bootstrap() {
   } catch (err) {
     console.error(err);
     document.getElementById("summary-line").textContent =
-      "Sorry — the road-safety data couldn't be loaded right now. Please try again later.";
+      "Sorry, the road-safety data couldn't be loaded right now. Please try again later.";
   }
 }
 
@@ -40,7 +40,7 @@ function renderStats(s) {
   document.getElementById("summary-line").innerHTML =
     `Leeds recorded <strong>${fmtNumber.format(latest.casualties)}</strong> road casualties in ${latest.year}, ` +
     `${dir} <strong>${fmtSignedPct(s.changeSinceStart).replace("−", "")}</strong> on ${s.coverage.from}. ` +
-    `But the most serious cases have proved harder to shift — killed or seriously injured rose from a low of ` +
+    `But the most serious cases have proved harder to shift. Killed or seriously injured rose from a low of ` +
     `<strong>${fmtNumber.format(ksiLow.ksi)}</strong> in ${ksiLow.year} to <strong>${fmtNumber.format(latest.ksi)}</strong> last year.`;
 
   const updated = s.updated

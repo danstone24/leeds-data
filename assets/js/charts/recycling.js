@@ -26,7 +26,7 @@ async function bootstrap() {
   } catch (err) {
     console.error(err);
     document.getElementById("summary-line").textContent =
-      "Sorry — the recycling and waste data couldn't be loaded right now. Please try again later.";
+      "Sorry, the recycling and waste data couldn't be loaded right now. Please try again later.";
   }
 }
 
@@ -76,7 +76,7 @@ function renderStats(s) {
   document.getElementById("summary-line").innerHTML =
     `Leeds sent <strong>${pct(latest.recycling)}</strong> of household waste for reuse, recycling or ` +
     `composting in ${latest.year}` +
-    (gap ? ` — <strong>${gap} points below</strong> the England average of ${pct(england.rate)}` : "") +
+    (gap ? `, <strong>${gap} points below</strong> the England average of ${pct(england.rate)}` : "") +
     `. Landfill has all but ended since the city's incinerator opened, and the council recorded ` +
     `<strong>${fly ? fmtNumber.format(fly.incidents) : "—"}</strong> fly-tipping incidents${flyDir}.`;
 
@@ -206,7 +206,7 @@ function renderLandType(flyTipping) {
   if (!latest) return;
   document.getElementById("landtype-caption").textContent =
     `Incidents in ${latest.year} by the type of land they were found on. Most fly-tipping in ` +
-    `Leeds lands on highways and council land — the places the council itself must clear.`;
+    `Leeds lands on highways and council land, the places the council itself must clear.`;
   const total = latest.byLandType.reduce((s, t) => s + t.count, 0);
   new Chart(document.getElementById("landtype-chart"), {
     type: "bar",

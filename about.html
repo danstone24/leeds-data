@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>About &amp; methodology — Leeds Data</title>
+    <title>About &amp; methodology | Leeds Data</title>
     <meta
       name="description"
       content="What Leeds Data is, where the numbers come from, how the site is built, and how we handle the quirks in each dataset."
@@ -48,7 +48,7 @@
           <h1 class="hero-title">About this site</h1>
           <p class="hero-lede">
             Leeds Data turns the open data that Leeds City Council publishes into
-            charts anyone can read — no spreadsheets, no jargon, just the numbers
+            charts anyone can read. No spreadsheets, no jargon, just the numbers
             behind how the city is doing.
           </p>
         </div>
@@ -58,8 +58,8 @@
         <div class="prose">
           <h2>Why it exists</h2>
           <p>
-            The council publishes hundreds of datasets — on potholes, spending,
-            road safety, traffic, footfall and more — at
+            The council publishes hundreds of datasets, on potholes, spending,
+            road safety, traffic, footfall and more, at
             <a href="https://datamillnorth.org" rel="noopener">Datamillnorth.org</a>.
             It's genuinely open, which is great, but most of it is raw CSV files
             that only make sense if you're comfortable with a spreadsheet. This
@@ -67,9 +67,9 @@
             a glance how Leeds is performing, without doing any of that work.
           </p>
           <p>
-            Every chart is built to answer a plain question — <em>are our roads
+            Every chart is built to answer a plain question: <em>are our roads
             getting safer? how fast are potholes fixed? do you still need a car?</em>
-            — rather than just dumping numbers on a page.
+            rather than just dumping numbers on a page.
           </p>
 
           <h2>Where the numbers come from</h2>
@@ -89,7 +89,7 @@
           </p>
           <p>
             The site checks for new data every night, so the charts stay
-            current as fresh figures are published — usually monthly, quarterly
+            current as fresh figures are published, usually monthly, quarterly
             or annually, depending on the dataset.
           </p>
 
@@ -102,14 +102,14 @@
           </p>
           <ul>
             <li>
-              <strong>We show what the council published — we don't invent data.</strong>
+              <strong>We show what the council published. We don't invent data.</strong>
               Where records are missing or unclear, we say so rather than filling
               gaps with guesses.
             </li>
             <li>
               <strong>We make fair comparisons.</strong> When the number of
               sensors or cameras behind a dataset changes over time, raw totals
-              become misleading, so we average per sensor instead — which keeps a
+              become misleading, so we average per sensor instead, which keeps a
               trend fair as equipment comes and goes.
             </li>
           </ul>
@@ -145,9 +145,9 @@
             <h3><a href="/pages/collisions.html">Road safety &amp; collisions</a></h3>
             <p>
               One row per injured casualty, from police records, so a single crash
-              can produce several. The council changed its file format around 2017
-              — older years spell severity out, newer ones use codes — which we
-              standardise. Only reported injuries appear; minor knocks that go
+              can produce several. The council changed its file format around 2017.
+              Older years spell severity out, newer ones use codes, and we
+              standardise them. Only reported injuries appear; minor knocks that go
               unreported don't.
             </p>
           </li>
@@ -184,7 +184,7 @@
             <h3><a href="/pages/housing.html">Council housing</a></h3>
             <p>
               Bids are expressions of interest through the Leeds Homes lettings
-              system — one household can bid on many homes, so they measure
+              system. One household can bid on many homes, so they measure
               competition, not the length of the waiting list. Ward boundaries
               changed in 2018 and older files use the old wards, so by-ward
               figures cover recent years only, while citywide trends use every
@@ -196,7 +196,7 @@
             <p>
               Application counts cover every state school in Leeds, but admission
               numbers and places filled are only published for community and
-              voluntary-controlled schools — academies and free schools run their
+              voluntary-controlled schools. Academies and free schools run their
               own admissions. Anything comparing applications to places therefore
               describes council-run schools only, and mostly primaries, since
               nearly all Leeds secondaries are academies.
@@ -206,7 +206,7 @@
             <h3><a href="/pages/air-quality.html">Air quality</a></h3>
             <p>
               The first page not built on council data: hourly readings from
-              DEFRA's national monitoring network, at the Leeds Centre station —
+              DEFRA's national monitoring network, at the Leeds Centre station,
               a "background" site, so kerbside air on busy roads will be worse.
               Annual averages are only shown for years where the monitor ran at
               least 75% of the time, following DEFRA convention, and the newest
@@ -219,14 +219,14 @@
           <li>
             <h3><a href="/pages/recycling.html">Recycling &amp; waste</a></h3>
             <p>
-              This page's figures come from DEFRA, not Datamillnorth — there is
+              This page's figures come from DEFRA, not Datamillnorth. There is
               no live council dataset for this topic. Recycling, landfill and
               residual-waste rates are DEFRA's annual local-authority waste
               statistics, computed on a consistent national method from
               councils' WasteDataFlow returns (published as a spreadsheet we
               read directly); fly-tipping incidents and enforcement actions are
               DEFRA's per-authority returns. Everything covers the council area
-              as a whole — nothing is published ward by ward. DEFRA's own
+              as a whole. Nothing is published ward by ward. DEFRA's own
               caveat, repeated on the page: fly-tipping counts partly reflect
               how councils record and report incidents, not just how much is
               actually dumped.
@@ -237,7 +237,7 @@
             <p>
               Built from two sources with different jobs. Every figure comes
               from MHCLG's quarterly planning returns (the PS1/PS2 open-data
-              tables) — official statistics covering every English planning
+              tables), official statistics covering every English planning
               authority, with Leeds picked out by its authority code. The map
               and the large-applications list come from
               <a href="https://www.planit.org.uk/" rel="noopener">PlanIt</a>,
@@ -256,7 +256,7 @@
             pages hosted on a global content network, with a nightly job that
             downloads any new council data, crunches it, and stores ready-made
             summaries for the pages to load. There's no tracking and no adverts.
-            The whole thing is open source — you can read every line, including the
+            The whole thing is open source. You can read every line, including the
             exact steps used to process each dataset, on
             <a href="https://github.com/danstone24/leeds-data" rel="noopener">GitHub</a>.
           </p>
