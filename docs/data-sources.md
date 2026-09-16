@@ -85,7 +85,7 @@ URLs on the site look like `https://datamillnorth.org/dataset/<slug>-<id>`. The 
 - **Worker routes**:
   - `GET /api/potholes/summary`
   - `GET /api/potholes/points`
-- **Chart**: [pages/potholes.html](../pages/potholes.html), [assets/js/charts/potholes.js](../assets/js/charts/potholes.js). Uses Leaflet + markercluster for the map (CARTO basemap, light/dark aware).
+- **Chart**: [pages/potholes.html](../pages/potholes.html), [assets/js/charts/potholes.js](../assets/js/charts/potholes.js). Uses Leaflet + markercluster for the map (OpenStreetMap basemap, no API key; dark mode via the `--basemap-filter` CSS token).
 
 ### Road safety & collisions
 

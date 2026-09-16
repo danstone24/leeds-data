@@ -71,16 +71,13 @@ function renderMap(points) {
   const t = tokens();
   const orange = series(6)[5];
   const done = t.seriesOther;
-  const dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
   const map = L.map("map", { scrollWheelZoom: false }).setView([53.8, -1.55], 11);
 
-  const tiles = dark
-    ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-    : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
-  L.tileLayer(tiles, {
+  // Plain OpenStreetMap tiles: no API key needed. Dark mode is handled by the
+  // --basemap-filter CSS token in style.css.
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   }).addTo(map);
 
   const cluster = L.markerClusterGroup({
@@ -93,7 +90,8 @@ function renderMap(points) {
     const open = code === -1;
     const marker = L.circleMarker([lat, lon], {
       radius: 4,
-      weight: 0,
+      weight: 1,
+      color: t.paper, // hairline separates dots from OSM's tinted road fills
       fillColor: open ? orange : done,
       fillOpacity: open ? 0.9 : 0.55,
     });
