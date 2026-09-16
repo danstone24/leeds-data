@@ -216,7 +216,7 @@ function renderMap(cycle, traffic) {
   const t = tokens();
   const mode = modeColours();
   const map = L.map("map", { scrollWheelZoom: false }).setView([53.8, -1.55], 11);
-  // Plain OpenStreetMap tiles: no API key needed. Dark mode via CSS filter in style.css.
+  // Plain OpenStreetMap tiles: no API key needed. Dark mode via --basemap-filter in style.css.
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',

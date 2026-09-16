@@ -73,8 +73,8 @@ function renderMap(points) {
   const done = t.seriesOther;
   const map = L.map("map", { scrollWheelZoom: false }).setView([53.8, -1.55], 11);
 
-  // Plain OpenStreetMap tiles: no API key needed. Dark mode is handled by a
-  // CSS filter on the tile pane (see .leaflet-tile-pane in style.css).
+  // Plain OpenStreetMap tiles: no API key needed. Dark mode is handled by the
+  // --basemap-filter CSS token in style.css.
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -90,7 +90,8 @@ function renderMap(points) {
     const open = code === -1;
     const marker = L.circleMarker([lat, lon], {
       radius: 4,
-      weight: 0,
+      weight: 1,
+      color: t.paper, // hairline separates dots from OSM's tinted road fills
       fillColor: open ? orange : done,
       fillOpacity: open ? 0.9 : 0.55,
     });

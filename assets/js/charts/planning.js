@@ -266,7 +266,7 @@ function renderMap(payload) {
   const t = tokens();
   const map = L.map("map", { scrollWheelZoom: false }).setView([53.8, -1.55], 11);
 
-  // Plain OpenStreetMap tiles: no API key needed. Dark mode via CSS filter in style.css.
+  // Plain OpenStreetMap tiles: no API key needed. Dark mode via --basemap-filter in style.css.
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution:
@@ -282,7 +282,8 @@ function renderMap(payload) {
   const markers = points.map(([lat, lon, state, type, size, desc, start, decided, url]) => {
     const marker = L.circleMarker([lat, lon], {
       radius: 4,
-      weight: 0,
+      weight: 1,
+      color: t.paper, // hairline separates dots from OSM's tinted road fills
       fillColor: stateColour(state, t),
       fillOpacity: GRANTED_STATES.test(state) || REFUSED_STATES.test(state) ? 0.85 : 0.6,
     });

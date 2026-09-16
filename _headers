@@ -7,6 +7,10 @@
 # Rule at the zone level (dashboard → leedsdata.co.uk → Rules → Cache
 # Rules), or use query-string cache-busting on the asset references.
 
+# NOTE: do NOT add a restrictive Referrer-Policy here (or a <meta referrer>
+# tag). The maps load tiles straight from tile.openstreetmap.org, whose usage
+# policy requires a Referer and serves an "Access blocked" tile without one.
+
 # HTML — always revalidate so deploys land immediately.
 /
   Cache-Control: public, max-age=0, must-revalidate

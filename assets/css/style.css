@@ -98,6 +98,10 @@
   /* Status (reserved meaning — never a series colour) */
   --status-critical: #d03b3b;
   --status-good: #0ca30c;
+
+  /* Basemap tiles are plain OpenStreetMap (no dark variant, no API key).
+     Mute them so the markers carry the colour; dark mode inverts them. */
+  --basemap-filter: saturate(0.7);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -139,6 +143,8 @@
 
     --status-critical: #d03b3b;
     --status-good: #0ca30c;
+
+    --basemap-filter: invert(1) hue-rotate(180deg) saturate(0.5) brightness(0.85) contrast(0.9);
   }
 }
 
@@ -774,17 +780,9 @@ ul {
   background: var(--paper-tint);
 }
 
-/* Basemap is plain OpenStreetMap (no dark variant, no API key). Mute it a
-   little so the markers carry the colour, and re-derive a dark basemap by
-   inverting the tiles. Static filters only: nothing here repaints. */
+/* Static filter only (token defined with the palette): nothing here repaints. */
 .leaflet-tile-pane {
-  filter: saturate(0.7);
-}
-
-@media (prefers-color-scheme: dark) {
-  .leaflet-tile-pane {
-    filter: invert(1) hue-rotate(180deg) saturate(0.5) brightness(0.85) contrast(0.9);
-  }
+  filter: var(--basemap-filter);
 }
 
 /* Marker clusters follow the site theme, not markercluster's traffic-light
