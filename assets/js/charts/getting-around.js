@@ -215,14 +215,12 @@ function renderStats(cycle, traffic) {
 function renderMap(cycle, traffic) {
   const t = tokens();
   const mode = modeColours();
-  const dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
   const map = L.map("map", { scrollWheelZoom: false }).setView([53.8, -1.55], 11);
-  L.tileLayer(
-    dark
-      ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-      : "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-    { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>' }
-  ).addTo(map);
+  // Plain OpenStreetMap tiles: no API key needed. Dark mode via CSS filter in style.css.
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  }).addTo(map);
 
   const all = [];
   const add = (sites, colour, kind) => {

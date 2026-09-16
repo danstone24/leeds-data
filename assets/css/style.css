@@ -774,6 +774,19 @@ ul {
   background: var(--paper-tint);
 }
 
+/* Basemap is plain OpenStreetMap (no dark variant, no API key). Mute it a
+   little so the markers carry the colour, and re-derive a dark basemap by
+   inverting the tiles. Static filters only: nothing here repaints. */
+.leaflet-tile-pane {
+  filter: saturate(0.7);
+}
+
+@media (prefers-color-scheme: dark) {
+  .leaflet-tile-pane {
+    filter: invert(1) hue-rotate(180deg) saturate(0.5) brightness(0.85) contrast(0.9);
+  }
+}
+
 /* Marker clusters follow the site theme, not markercluster's traffic-light
    defaults — a cluster mixes repaired and open records, so it stays neutral. */
 .marker-cluster,
